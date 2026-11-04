@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js ở gốc kho, có @updateURL) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.1.1 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js ở gốc kho, có @updateURL) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.1.2 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -141,6 +141,7 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: trang đổi địa chỉ không tải lại → nút đổi trạng thái theo địa chỉ mới trong khoảng 1 giây.
   - Biên: lưu/xóa ở tab khác rồi quay lại tab này → nút cập nhật đúng khi tab hiện lại.
   - Biên: khung nhúng (iframe) trong trang → không hiện nút.
+  - Biên: thanh công cụ dưới của Soul nằm đè lên trang → trên điện thoại (≤ 640px), bảng lưu nhanh, hộp thoại dạng tấm, menu, nút +, thanh chọn nhiều và thông báo đều chừa 64px ở đáy. [2.1.2]
   - Biên: kiểu chữ, màu của trang web không làm vỡ giao diện nút/bảng, và ngược lại app không làm đổi giao diện trang.
 - CN-12 (bản Soul) Trình quản lý dạng lớp phủ toàn màn hình: mở từ bảng lưu nhanh hoặc lệnh menu userscript của Soul; đủ chức năng CN-01, CN-03, CN-04, CN-06…CN-10 như bản tiện ích.
   - Áp dụng đủ CN-13…CN-16 (nhấn giữ dòng = menu; kéo bằng tay nắm ≡).
@@ -299,6 +300,7 @@ Bản 2.1.0 (CN-18 nhập/xuất HTML) — thêm 2026-11-04. Tệp mẫu đều 
 - CT-81 (CN-18) Nhập tệp .html là trang web thường, tệp dấu trang rỗng, tệp chữ rác → báo lỗi, dữ liệu không đổi.
 - CT-82 (CN-18, CN-17) Tệp ~100 MB (11.000 dấu trang, mỗi mục có ảnh biểu tượng) → nhập (Thay thế) ≤ 5 giây trên máy thử, có hiện "Đang đọc tệp…", không lỗi, đủ số dấu trang.
 - CT-83 (CN-18, CN-12) Bản Soul: "Xuất tệp HTML" tải về tệp đúng nội dung; nhập tệp HTML qua ô chọn tệp (Gộp) → dữ liệu đúng.
+- CT-84 (CN-11, CN-12) Khung 360×640: nút Lưu của bảng lưu nhanh, nút +, nút Lưu của hộp thêm, mục cuối của menu ⋯, thanh chọn nhiều đều cách đáy màn hình ≥ 64px (kể cả khi phải cuộn bảng). [2.1.2]
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
@@ -307,7 +309,7 @@ Bản 2.1.0 (CN-18 nhập/xuất HTML) — thêm 2026-11-04. Tệp mẫu đều 
 - Nhập/xuất HTML, hàm thuần (tests/html.test.js, tệp mẫu từ tests/html_mau.py): 32/32 qua — CT-75…CT-82.
 - Bản tiện ích (tests/ui_test.py): 66/66 qua (hồi quy CT-01…CT-74, CT-C1…CT-C5).
 - Nhập/xuất HTML trên bản tiện ích (tests/html_ui_test.py): 21/21 qua — CT-75…CT-82, CT-C1, CT-C3, nhập JSON hồi quy. Tệp giả 91 MB (11.000 dấu trang có ảnh biểu tượng) nhập trong 1,65 s.
-- Bản Soul (tests/soul_test.py): 20/20 qua — CT-43…CT-57, CT-74, CT-83, CT-C6, CT-C7.
+- Bản Soul (tests/soul_test.py): 21/21 qua — CT-43…CT-57, CT-74, CT-83, CT-84, CT-C6, CT-C7 (lần chạy 2.1.2; ui_test 66/66 chạy lại cùng lúc).
 - Tốc độ (tests/perf_test.py, 50.000 dấu trang): 12/12 qua — mở trình quản lý 1,03 s; gõ tìm [134, 122, 141] ms; lọc 36 ms; popup 0,26 s; lưu 211 / 151 ms; huy hiệu 124 ms; Soul kiểm tra trang 9,1 ms; 100.000 dấu trang: mở 1,89 s, xuất → nhập giữ 100.002 mục.
 - Chưa thử được ở máy: nhập tệp HTML xuất từ app vào Chrome/Edge/Soul thật (chỉ kiểm bằng bộ đọc HTML chuẩn); Soul thật trên điện thoại (chọn tệp, tải tệp, tốc độ đọc tệp lớn); các mục "chưa thử" của 2.0.0.
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
@@ -316,6 +318,7 @@ Bản 2.1.0 (CN-18 nhập/xuất HTML) — thêm 2026-11-04. Tệp mẫu đều 
 - 2.0.0 (2026-11-03): thư mục như trình duyệt (thư mục trong danh sách, đường dẫn), kéo thả + thứ tự tự đặt, cây thư mục khi lưu/chuyển (tạo thư mục ngay trong hộp), cắt/chép/dán + menu ngữ cảnh + phím tắt + Hoàn tác, tìm nhiều điều kiện (Tên, Địa chỉ, Nhãn, Đúng ngày/Trong tháng/Khoảng ngày, Phạm vi) với thẻ điều kiện, màu nhãn (10 màu), giao diện mới sáng/dịu + chế độ tối, kho chia phần cho dữ liệu lớn (vẽ dần, bộ đệm tìm, chỉ ghi phần đổi, bảng tra địa chỉ). DATA_VERSION 2, tự chuyển từ v1 (dự phòng "sdt_data_backup_v1").
 - 2.1.0 (2026-11-04): nhập/xuất tệp dấu trang HTML của trình duyệt (CN-18): nút "Xuất tệp HTML"; ô chọn tệp nhận .json và .html; Gộp ghép thư mục cùng tên, bỏ dấu trang đã có; đọc được tệp kiểu Chrome, Soul, Firefox kể cả tệp ~100 MB. DATA_VERSION giữ 2.
 - 2.1.1 (2026-11-04): đưa mã lên kho GitHub SoulBookmarks; userscript có @homepageURL/@updateURL/@downloadURL trỏ tới tệp ở gốc kho; build.py ghi tệp ra gốc kho. Chức năng không đổi.
+- 2.1.2 (2026-11-04): sửa lỗi người dùng báo: nút ở đáy bảng lưu nhanh (Xóa, Cập nhật) bị thanh công cụ dưới của Soul che. Bản Soul chừa 64px ở đáy cho mọi phần bám đáy màn hình (soul/soul.css). Bản máy tính không đổi.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.

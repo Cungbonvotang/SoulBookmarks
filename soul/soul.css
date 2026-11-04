@@ -35,3 +35,15 @@
   background: var(--bg); color: var(--ink); font: 400 15px/1.5 var(--font);
 }
 .ovl .layout { min-height: 100%; }
+
+/* Thanh công cụ dưới của Soul nằm đè lên trang → chừa khoảng trống ở đáy cho mọi thứ bám đáy màn hình */
+:host { --soul-gap: 64px; }
+@media (max-width: 640px) {
+  .psheet { padding-bottom: calc(8px + var(--soul-gap)); max-height: calc(100vh - 24px); box-sizing: border-box; }
+  .dlg.sheet, .dlg.cmenu:not(.at) { padding-bottom: var(--soul-gap); max-height: calc(100vh - 24px); box-sizing: border-box; }
+  .ovl .main { padding-bottom: calc(110px + var(--soul-gap)); }
+  .ovl .fab { bottom: calc(18px + var(--soul-gap)); }
+  .ovl .bulkbar { padding-bottom: calc(10px + var(--soul-gap)); }
+  :host .toast { bottom: calc(92px + var(--soul-gap)); }
+  :host dialog .toast { bottom: calc(16px + var(--soul-gap)); }
+}

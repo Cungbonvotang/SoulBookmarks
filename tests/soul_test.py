@@ -322,6 +322,31 @@ with sync_playwright() as p:
     ok('CT-83 Soul: xuất HTML, nhập HTML (Gộp)', exp_ok and imp_ok, [dl.value.suggested_filename, exp_ok, res83])
     X.close()
 
+    # CT-84 chừa chỗ cho thanh công cụ dưới của Soul (64px)
+    Y = newpage(ctx, f'{L}/trang-thu.html', w=360)
+    Y.set_viewport_size({'width': 360, 'height': 640})
+    seed_sample(Y)
+    ih = Y.evaluate('innerHeight')
+    def bottom(loc):
+        loc.scroll_into_view_if_needed(); W(Y, 100)
+        b = loc.bounding_box(); return round(b['y'] + b['height']) if b else 9999
+    gaps = {}
+    open_sheet(Y)
+    gaps['bảng lưu nhanh: nút Lưu'] = bottom(T(Y, 'popup-save').last)
+    T(Y, 'popup-open-manager').last.click(); Y.wait_for_selector('[data-test="soul-overlay"] [data-test="fab-add"]'); W(Y, 300)
+    gaps['nút +'] = bottom(T(Y, 'fab-add'))
+    T(Y, 'fab-add').click(); W(Y, 300)
+    gaps['hộp thêm: nút Lưu'] = bottom(T(Y, 'bm-save').last)
+    Y.keyboard.press('Escape'); W(Y, 200)
+    T(Y, 'btn-more').click(); W(Y, 250)
+    gaps['menu ⋯: mục cuối'] = bottom(Y.locator('[data-test="soul-overlay"] .menu-item, dialog .menu-item').last)
+    Y.keyboard.press('Escape'); W(Y, 200)
+    T(Y, 'btn-select-mode').click(); W(Y, 250)
+    gaps['thanh chọn nhiều'] = bottom(T(Y, 'bulk-delete'))
+    Y.screenshot(path=os.path.join(OUT, 'soul-day-360.png'))
+    ok('CT-84 chừa 64px ở đáy cho thanh công cụ của Soul', all(v <= ih - 64 for v in gaps.values()), [ih, gaps])
+    Y.close()
+
     # CT-C7 dữ liệu hỏng
     snap = dict(GM)
     GM['sdt_b_3'] = json.dumps('không phải danh sách')
