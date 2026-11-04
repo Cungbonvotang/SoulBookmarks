@@ -30,6 +30,7 @@ header = f"""// ==UserScript==
 // @grant        GM_openInTab
 // @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // @run-at       document-idle
 // @noframes
 // ==/UserScript==
@@ -55,3 +56,24 @@ body = '\n'.join([
 out = os.path.join(os.path.dirname(HERE), 'so-dau-trang.user.js')   # ở gốc kho mã: địa chỉ cập nhật cố định
 open(out, 'w', encoding='utf-8').write(header + body + '\n')
 print(out, os.path.getsize(out), 'byte, phiên bản', version)
+
+# Script Kho: giữ dữ liệu, cố ý KHÔNG có @updateURL/@downloadURL và giữ nguyên @version để Soul không đề nghị cập nhật (cập nhật sẽ xóa kho).
+KHO_VERSION = '1.0.0'
+kho_header = f"""// ==UserScript==
+// @name         Sổ Dấu Trang – Kho
+// @namespace    so-dau-trang-kho
+// @version      {KHO_VERSION}
+// @description  Giữ dấu trang cho script "Sổ Dấu Trang" để cập nhật script chính không làm mất dữ liệu. Không cần và không nên cập nhật script này.
+// @match        *://*/*
+// @include      *
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
+// @grant        GM_listValues
+// @run-at       document-start
+// @noframes
+// ==/UserScript==
+"""
+kho_out = os.path.join(os.path.dirname(HERE), 'so-dau-trang-kho.user.js')
+open(kho_out, 'w', encoding='utf-8').write(kho_header + open(os.path.join(HERE, 'kho.js'), encoding='utf-8').read())
+print(kho_out, os.path.getsize(kho_out), 'byte, Kho', KHO_VERSION)

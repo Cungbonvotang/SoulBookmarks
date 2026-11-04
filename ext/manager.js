@@ -393,7 +393,16 @@
     function renderBanner() {
       const el = $('banner');
       el.textContent = '';
-      if (!S.readOnly) return;
+      if (!S.readOnly) {
+        // Lời nhắc của môi trường chạy (bản Soul: chưa cài script Kho…)
+        const n = env.notice ? env.notice() : null;
+        if (n) el.append(h('div', { class: 'banner info', role: 'status', 'data-test': 'env-banner' },
+          h('p', { class: 'banner-t' }, n.title),
+          h('p', {}, n.text),
+          n.action ? h('div', { class: 'banner-acts' },
+            h('button', { type: 'button', class: 'btn quiet small', 'data-test': 'env-banner-act', onclick: n.action.fn }, n.action.label)) : null));
+        return;
+      }
       el.append(h('div', { class: 'banner', role: 'alert', 'data-test': 'error-banner' },
         h('p', { class: 'banner-t' }, 'Không đọc được dữ liệu đã lưu'),
         h('p', {}, S.loadError + ' Để không làm mất dữ liệu, Sổ Dấu Trang sẽ không ghi đè lên dữ liệu cũ.'),
@@ -900,6 +909,7 @@
           h('button', { type: 'button', class: 'btn quiet', 'data-test': 'backup-import-paste', onclick: () => importText(ta.value, 'dữ liệu dán', segValue(body, 'b-mode'), result) }, 'Nhập dữ liệu đã dán'));
       };
       const body = h('div', { class: 'backup' },
+        env.storageInfo ? h('p', { class: 'muted', 'data-test': 'backup-storage-info' }, env.storageInfo()) : null,
         h('section', {},
           h('h3', {}, 'Xuất'),
           h('p', { class: 'muted' }, 'Tệp JSON giữ đủ thư mục, dấu trang, nhãn và màu nhãn, dùng để sao lưu. Tệp HTML là dạng dấu trang chung của trình duyệt, dùng để chuyển sang Chrome, Edge, Soul… Nên sao lưu thường xuyên vì gỡ app hoặc xóa dữ liệu trình duyệt sẽ mất dấu trang.'),

@@ -185,6 +185,7 @@ with sync_playwright() as p:
     row_menu(D, item_id(D, 'b9'), 'm-delete'); W(D); after_del = T(D, 'list-item').count()
     T(D, 'toast-action').click(); W(D, 400)
     # kéo thả trong lớp phủ: b13 lên trên b9
+    item_id(D, 'b9').evaluate("e => e.scrollIntoView({ block: 'center' })"); W(D, 200)   # 2.2.0: có dòng nhắc cài Kho ở đầu danh sách
     b9b = item_id(D, 'b9').bounding_box(); hb = item_id(D, 'b13').locator('[data-test="row-handle"]').bounding_box()
     D.mouse.move(hb['x'] + 10, hb['y'] + 10); D.mouse.down(); D.mouse.move(b9b['x'] + 100, b9b['y'] + 5, steps=10); D.mouse.up(); W(D, 400)
     dragged = ids(D)[:2] == ['b13', 'b9']

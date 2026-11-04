@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js ở gốc kho, có @updateURL) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.1.2 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.2.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -134,6 +134,18 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: tệp HTML không phải tệp dấu trang, hoặc không có dấu trang/thư mục nào → báo lỗi, dữ liệu giữ nguyên.
   - Không đổi: "Chép / Dán dữ liệu" của bản Soul vẫn là JSON.
 
+- CN-19 (bản Soul) Giữ dấu trang qua các lần cập nhật script. [mới ở 2.2.0] Nút cập nhật trong danh sách script của Soul xóa kho GM của script được cập nhật (người dùng báo 2026-11-04).
+  - Thêm script thứ hai "Sổ Dấu Trang – Kho" (so-dau-trang-kho.user.js, @version 1.0.0 cố định, không có @updateURL/@downloadURL): chỉ cất và trả dữ liệu. Script chính đọc/ghi qua Kho.
+  - Chấp nhận: có Kho → bấm cập nhật script chính (kho riêng của nó bị xóa) → mở trang → đủ dấu trang, nút ruy băng đúng; lưu thêm được; vị trí nút ruy băng cũng giữ.
+  - Chấp nhận: chưa cài Kho → app chạy bằng kho riêng như cũ; trình quản lý có dòng nhắc "Chưa cài script Kho" kèm nút "Cài script Kho" (mở địa chỉ script Kho trên kho mã).
+  - Chấp nhận: cài Kho khi kho riêng đang có dữ liệu → dữ liệu tự chuyển sang Kho (chép rồi đọc lại kiểm); kho riêng giữ bản cũ và một dấu "đã chuyển".
+  - Biên: cả Kho và kho riêng đều có dữ liệu (chưa chuyển) → gộp như "Gộp" JSON (cùng mã giữ bản cập nhật mới hơn), không bỏ bên nào.
+  - Biên: đã chuyển sang Kho mà Kho bị tắt/gỡ → báo lỗi "Không thấy script Sổ Dấu Trang – Kho", nút ruy băng trạng thái lỗi, không ghi gì.
+  - Biên: hai đường nói chuyện: dùng chung vùng chạy của userscript (trang không thấy nếu Soul tách vùng) hoặc sự kiện DOM (trang có thể nghe). Màn Sao lưu ghi rõ nơi cất và trường hợp đang dùng.
+  - Biên: Kho chỉ nhận khóa dạng sdt_…, giá trị là chuỗi; không có lệnh xóa toàn bộ; lệnh lạ bị từ chối.
+  - Biên: kiểm tra trang đã lưu chưa khi tải trang vẫn ≤ 30 ms với 50.000 dấu trang trong Kho.
+  - Biên: lần chuyển từ 2.1.x lên 2.2.0 phải chép tay một lần (2.1.x không biết Kho; cập nhật xóa kho cũ trước khi 2.2.0 chạy).
+
 - CN-11 (bản Soul) Nút ruy băng nổi trên mọi trang web: thay cho biểu tượng trên thanh công cụ.
   - Chấp nhận: mở trang đã lưu → mép phải màn hình có nút ruy băng đỏ đặc; trang chưa lưu → ruy băng viền, không tô.
   - Chấp nhận: chạm nút → bảng lưu nhanh trượt lên từ dưới (giống popup bản tiện ích: trạng thái, tên, địa chỉ, thư mục, nhãn, Lưu/Cập nhật, Xóa, Mở trình quản lý).
@@ -151,7 +163,7 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: menu userscript của Soul có hai lệnh "Lưu / sửa trang này" và "Mở trình quản lý" (nếu Soul hiện menu này).
 
 ## 2. Dữ liệu ← thiet-ke-webapp
-Nơi lưu: bản tiện ích chrome.storage.local (quyền unlimitedStorage); bản Soul GM_setValue, thêm "sdt_ui" (vị trí nút nổi). Từ 2.0.0 dữ liệu chia thành các khóa "sdt_*" (xem dưới); bản 1.x dùng một khóa "sdt_data" · Sao lưu: xuất/nhập JSON (bản Soul thêm chép/dán)
+Nơi lưu: bản tiện ích chrome.storage.local (quyền unlimitedStorage); bản Soul GM_setValue, thêm "sdt_ui" (vị trí nút nổi). Từ 2.2.0 bản Soul cất các khóa sdt_* (kể cả sdt_ui) trong kho GM của script "Sổ Dấu Trang – Kho" (giá trị là chuỗi JSON như cũ); kho GM riêng của script chính chỉ còn bản cũ và dấu "sdt_kho_moved". Từ 2.0.0 dữ liệu chia thành các khóa "sdt_*" (xem dưới); bản 1.x dùng một khóa "sdt_data" · Sao lưu: xuất/nhập JSON (bản Soul thêm chép/dán)
 Mỗi trình duyệt giữ dữ liệu riêng; chuyển giữa máy tính và điện thoại bằng xuất/nhập JSON. Gỡ tiện ích hoặc xóa dữ liệu trình duyệt là mất dữ liệu.
 
 DATA_VERSION 2 (từ bản 2.0.0): thêm trường order cho thư mục và dấu trang.
@@ -301,17 +313,28 @@ Bản 2.1.0 (CN-18 nhập/xuất HTML) — thêm 2026-11-04. Tệp mẫu đều 
 - CT-82 (CN-18, CN-17) Tệp ~100 MB (11.000 dấu trang, mỗi mục có ảnh biểu tượng) → nhập (Thay thế) ≤ 5 giây trên máy thử, có hiện "Đang đọc tệp…", không lỗi, đủ số dấu trang.
 - CT-83 (CN-18, CN-12) Bản Soul: "Xuất tệp HTML" tải về tệp đúng nội dung; nhập tệp HTML qua ô chọn tệp (Gộp) → dữ liệu đúng.
 - CT-84 (CN-11, CN-12) Khung 360×640: nút Lưu của bảng lưu nhanh, nút +, nút Lưu của hộp thêm, mục cuối của menu ⋯, thanh chọn nhiều đều cách đáy màn hình ≥ 64px (kể cả khi phải cuộn bảng). [2.1.2]
+Bản 2.2.0 (CN-19 script Kho) — thêm 2026-11-04. Cách chạy: hai kho GM giả tách riêng cho script chính và script Kho; Kho chạy lúc document-start; "bấm cập nhật" = xóa kho GM của script chính.
+- CT-85 (CN-19) Chưa cài Kho: lưu một dấu trang → nằm trong kho riêng; trình quản lý có dòng nhắc + nút "Cài script Kho" mở đúng địa chỉ; Sao lưu ghi "sẽ mất".
+- CT-86 (CN-19) Kho riêng có 16 dấu trang, cài Kho → mở trang → Kho có đủ 16 (đúng tên), kho riêng có dấu "đã chuyển"; hết dòng nhắc; Sao lưu ghi nơi cất là Kho.
+- CT-87 (CN-19) Xóa kho riêng (giả cập nhật) → mở trang → đủ 16; lưu thêm → Kho có 17, kho riêng không có phần dấu trang; kéo nút ruy băng → vị trí cất trong Kho.
+- CT-88 (CN-19) Kho có 16, kho riêng có 2 mục mới + 1 mục trùng mã sửa mới hơn, chưa chuyển → gộp: 18 mục, mục trùng lấy bản mới hơn.
+- CT-89 (CN-19) Đã chuyển, Kho bị tắt → chế độ "missing", ruy băng lỗi, trình quản lý báo "Không thấy script…", thêm dấu trang không ghi; cả hai kho không đổi.
+- CT-90 (CN-19) Đường sự kiện DOM: đọc đủ, lưu thêm được; trang gửi khóa lạ, lệnh "clear", giá trị không phải chuỗi → bị từ chối, Kho không đổi.
+- CT-91 (CN-19, CN-17) 50.000 dấu trang trong Kho: mở trang đã lưu → ruy băng "đã lưu", phần kiểm tra ≤ 30 ms (3 lần).
+- CT-92 (CN-19, CN-11) Trang bảo mật chặt (Trusted Types, CSP) có Kho → vẫn dùng Kho, bảng lưu nhanh mở được.
+- CT-93 (CN-19) Tiêu đề: Kho @version 1.0.0, @run-at document-start, không có @updateURL/@downloadURL; script chính có @grant unsafeWindow và @updateURL.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-04, bản 2.1.0, giờ Asia/Ho_Chi_Minh.
+2026-11-04, bản 2.2.0, giờ Asia/Ho_Chi_Minh.
 - Hàm thuần + kho chia phần (tests/core.test.js): 52/52 qua.
-- Nhập/xuất HTML, hàm thuần (tests/html.test.js, tệp mẫu từ tests/html_mau.py): 32/32 qua — CT-75…CT-82.
-- Bản tiện ích (tests/ui_test.py): 66/66 qua (hồi quy CT-01…CT-74, CT-C1…CT-C5).
-- Nhập/xuất HTML trên bản tiện ích (tests/html_ui_test.py): 21/21 qua — CT-75…CT-82, CT-C1, CT-C3, nhập JSON hồi quy. Tệp giả 91 MB (11.000 dấu trang có ảnh biểu tượng) nhập trong 1,65 s.
-- Bản Soul (tests/soul_test.py): 21/21 qua — CT-43…CT-57, CT-74, CT-83, CT-84, CT-C6, CT-C7 (lần chạy 2.1.2; ui_test 66/66 chạy lại cùng lúc).
-- Tốc độ (tests/perf_test.py, 50.000 dấu trang): 12/12 qua — mở trình quản lý 1,03 s; gõ tìm [134, 122, 141] ms; lọc 36 ms; popup 0,26 s; lưu 211 / 151 ms; huy hiệu 124 ms; Soul kiểm tra trang 9,1 ms; 100.000 dấu trang: mở 1,89 s, xuất → nhập giữ 100.002 mục.
-- Chưa thử được ở máy: nhập tệp HTML xuất từ app vào Chrome/Edge/Soul thật (chỉ kiểm bằng bộ đọc HTML chuẩn); Soul thật trên điện thoại (chọn tệp, tải tệp, tốc độ đọc tệp lớn); các mục "chưa thử" của 2.0.0.
+- Nhập/xuất HTML, hàm thuần (tests/html.test.js): 32/32 qua.
+- Bản tiện ích (tests/ui_test.py): 66/66 qua.
+- Nhập/xuất HTML trên bản tiện ích (tests/html_ui_test.py): 21/21 qua.
+- Bản Soul không có Kho (tests/soul_test.py): 21/21 qua — CT-53 sửa bước kéo thả: cuộn dòng vào giữa trước khi kéo vì có dòng nhắc cài Kho ở đầu danh sách (hành vi kiểm không đổi).
+- Script Kho (tests/kho_test.py): 11/11 qua — CT-85…CT-93, vị trí nút trong Kho, không lỗi console. 50.000 dấu trang trong Kho: kiểm tra trang 3 lần đều ≤ 30 ms.
+- Tốc độ (tests/perf_test.py): 12/12 qua; Soul kiểm tra trang 13,2 ms.
+- Chưa thử được ở máy: Soul thật — Soul chạy hai userscript chung vùng hay tách vùng (quyết định trang có thấy dữ liệu không); nút cập nhật của Soul với script Kho (giữ @version 1.0.0 nên không có bản mới); các mục chưa thử của 2.0.0 / 2.1.0.
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
@@ -319,6 +342,7 @@ Bản 2.1.0 (CN-18 nhập/xuất HTML) — thêm 2026-11-04. Tệp mẫu đều 
 - 2.1.0 (2026-11-04): nhập/xuất tệp dấu trang HTML của trình duyệt (CN-18): nút "Xuất tệp HTML"; ô chọn tệp nhận .json và .html; Gộp ghép thư mục cùng tên, bỏ dấu trang đã có; đọc được tệp kiểu Chrome, Soul, Firefox kể cả tệp ~100 MB. DATA_VERSION giữ 2.
 - 2.1.1 (2026-11-04): đưa mã lên kho GitHub SoulBookmarks; userscript có @homepageURL/@updateURL/@downloadURL trỏ tới tệp ở gốc kho; build.py ghi tệp ra gốc kho. Chức năng không đổi.
 - 2.1.2 (2026-11-04): sửa lỗi người dùng báo: nút ở đáy bảng lưu nhanh (Xóa, Cập nhật) bị thanh công cụ dưới của Soul che. Bản Soul chừa 64px ở đáy cho mọi phần bám đáy màn hình (soul/soul.css). Bản máy tính không đổi.
+- 2.2.0 (2026-11-04): script "Sổ Dấu Trang – Kho" 1.0.0 giữ dữ liệu bản Soul qua các lần cập nhật script chính (CN-19); tự chuyển dữ liệu sang Kho, gộp khi hai bên đều có; báo lỗi không ghi khi Kho bị tắt; trình quản lý có dòng nhắc cài Kho; Sao lưu ghi nơi cất. manager.js nhận env.notice và env.storageInfo (bản tiện ích không dùng). DATA_VERSION giữ 2.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.
@@ -337,3 +361,6 @@ Bản 2.1.0 (CN-18 nhập/xuất HTML) — thêm 2026-11-04. Tệp mẫu đều 
 - [sua-webapp] 2.1.0: tệp HTML không mang màu nhãn; ngày chỉ đúng tới giây. Chrome đặt dấu trang nhập từ HTML vào một thư mục tên "Imported" (hành vi của Chrome). Muốn chuyển đủ giữa hai bản Sổ Dấu Trang thì dùng JSON.
 - [sua-webapp] 2.1.0: nhập tệp HTML không có Hoàn tác (như nhập JSON); Thay thế toàn bộ có hỏi xác nhận.
 - [sua-webapp] 2.1.1: kho SoulBookmarks đang để riêng tư → địa chỉ raw.githubusercontent.com không tải được nếu không đăng nhập, nên Soul chưa tự cập nhật/cài từ địa chỉ được cho tới khi kho để công khai. Khóa ký khoa-ky.pem không đưa lên kho (giữ trong gói zip).
+- [sua-webapp] 2.2.0: nút cập nhật script trong Soul xóa kho GM của script đó (người dùng báo, 2026-11-04) → lý do có script Kho. Không bấm cập nhật script Kho; Kho giữ @version 1.0.0 mãi để Soul không có bản mới mà đề nghị.
+- [sua-webapp] 2.2.0: kho GM riêng của script chính vẫn giữ bản dữ liệu tại lúc chuyển sang Kho (không xóa, phòng trang giả mạo Kho); bản này cũ dần và mất ở lần cập nhật kế, không được dùng lại vì có dấu "sdt_kho_moved".
+- [sua-webapp] 2.2.0: một trang web cố ý giả mạo script Kho (khi chưa cài Kho, qua đường sự kiện) có thể nhận được bản sao dấu trang; dữ liệu thật không bị xóa. Rủi ro thấp, đã ghi trong màn Sao lưu khi dùng đường trang có thể thấy.

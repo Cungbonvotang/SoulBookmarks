@@ -63,6 +63,8 @@
 .banner-t { font-weight: 700; color: var(--ribbon); font-size: 15px; }
 .banner-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .banner .btn { background: var(--surface); }
+.banner.info { background: var(--accent-soft); }
+.banner.info .banner-t { color: var(--accent); }
 
 /* danh sách */
 .list { max-width: 940px; padding: 0 14px; position: relative; }
