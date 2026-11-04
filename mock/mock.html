@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Sổ Dấu Trang 2.0 — giao diện mới</title>
+<link rel="stylesheet" href="../ext/fonts.css">
+<style>
+:root {
+  --bg: #F5F6FA; --surface: #FFFFFF; --side: #EEF1F7; --field: #F1F3F8;
+  --ink: #1D2433; --muted: #667085; --line: #E4E8F0;
+  --accent: #3D6BE0; --accent-ink: #FFFFFF; --accent-soft: #E9EFFD;
+  --ribbon: #E5484D; --ribbon-soft: #FDECEC;
+  --folder: #F2A93B; --folder-soft: #FEF4E2;
+  --font: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+.dark {
+  --bg: #12151C; --surface: #1B202A; --side: #161A22; --field: #232937;
+  --ink: #E7EAF1; --muted: #98A2B3; --line: #2A3140;
+  --accent: #7D9BF7; --accent-ink: #0F1420; --accent-soft: #232D45;
+  --ribbon: #FF6B70; --ribbon-soft: #3A2226; --folder: #F5B75A; --folder-soft: #3A2F1C;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #D9DEE8; font: 400 15px/1.5 var(--font); color: var(--ink); padding: 28px; }
+.row { display: flex; gap: 28px; align-items: flex-start; }
+.cap { font-size: 14px; font-weight: 600; color: #3A4256; margin: 0 0 10px 4px; }
+.phone { width: 375px; height: 780px; border-radius: 28px; overflow: hidden; background: var(--bg); position: relative; box-shadow: 0 12px 40px rgba(20,30,60,.18); color: var(--ink); }
+svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.top { display: flex; align-items: center; gap: 4px; padding: 12px 10px 10px 6px; }
+.ib { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); position: relative; }
+.search { flex: 1; height: 44px; border-radius: 22px; background: var(--surface); display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--muted); font-size: 14px; box-shadow: 0 1px 2px rgba(20,30,60,.06); }
+.badge { position: absolute; top: 5px; right: 5px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+.crumbs { display: flex; align-items: center; gap: 4px; padding: 4px 18px 0; font-size: 13px; color: var(--muted); }
+.crumbs b { color: var(--accent); font-weight: 600; }
+.title { display: flex; align-items: baseline; gap: 10px; padding: 2px 18px 10px; }
+.title h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -.01em; }
+.title span { color: var(--muted); font-size: 13px; }
+.tools { display: flex; gap: 8px; padding: 0 16px 12px; }
+.pill { height: 36px; border-radius: 18px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; background: var(--surface); font-size: 13px; font-weight: 500; color: var(--ink); box-shadow: 0 1px 2px rgba(20,30,60,.06); }
+.group { margin: 0 12px 12px; background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 2px rgba(20,30,60,.05); }
+.gl { font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 22px 6px; }
+.it { display: flex; align-items: center; gap: 12px; padding: 10px 4px 10px 14px; min-height: 60px; position: relative; }
+.it + .it::before { content: ''; position: absolute; left: 62px; right: 0; top: 0; border-top: 1px solid var(--line); }
+.ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; font-weight: 700; font-size: 14px; }
+.ico.f { background: var(--folder-soft); color: var(--folder); }
+.ico.b { background: var(--accent-soft); color: var(--accent); }
+.tx { flex: 1; min-width: 0; }
+.tt { font-weight: 600; font-size: 15px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt { font-size: 12.5px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.tags { display: flex; gap: 6px; margin-top: 5px; }
+.tag { font-size: 12px; padding: 1px 9px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.acts { display: flex; color: var(--muted); }
+.acts .ib { width: 36px; }
+.grip { color: #B4BCCB; }
+.saved { position: absolute; left: 14px; top: 8px; width: 9px; height: 13px; background: var(--ribbon); clip-path: polygon(0 0,100% 0,100% 100%,50% 72%,0 100%); }
+.fab { position: absolute; right: 18px; bottom: 22px; width: 56px; height: 56px; border-radius: 18px; background: var(--accent); color: var(--accent-ink); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(61,107,224,.38); }
+.fab svg.i { width: 26px; height: 26px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+.chip { height: 32px; border-radius: 16px; padding: 0 6px 0 12px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 500; }
+.chip svg.i { width: 16px; height: 16px; }
+.clear { font-size: 13px; color: var(--muted); font-weight: 600; display: inline-flex; align-items: center; padding: 0 6px; }
+.path { font-size: 12.5px; color: var(--accent); }
+/* trang web giả + tấm trượt */
+.web { position: absolute; inset: 0; background: #fff; padding: 22px 20px; color: #333; }
+.web h2 { font: 700 22px/1.3 Georgia, serif; margin: 6px 0 10px; color: #111; }
+.web p { font: 15px/1.6 Georgia, serif; margin: 0 0 10px; color: #444; }
+.web .bar { height: 160px; border-radius: 8px; background: linear-gradient(135deg,#cfd8e8,#e9edf4); margin-bottom: 14px; }
+.scrim { position: absolute; inset: 0; background: rgba(17,24,39,.42); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 22px 22px 0 0; padding: 8px 18px 20px; box-shadow: 0 -8px 30px rgba(0,0,0,.15); }
+.grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 2px auto 10px; }
+.head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.rib { width: 26px; height: 40px; flex: none; }
+.st { font-size: 18px; font-weight: 600; }
+.sd { font-size: 13px; color: var(--muted); }
+.fl { font-size: 12.5px; font-weight: 600; color: var(--muted); margin: 10px 0 5px; }
+.in { height: 46px; border-radius: 12px; background: var(--field); display: flex; align-items: center; padding: 0 14px; font-size: 15px; gap: 8px; }
+.in.sel { justify-content: space-between; }
+.in .fo { display: flex; align-items: center; gap: 8px; }
+.in .fo svg { color: var(--folder); }
+.in.focus { box-shadow: 0 0 0 2px var(--accent) inset; background: var(--surface); }
+.btns { display: flex; gap: 10px; margin-top: 16px; }
+.btn { height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; padding: 0 18px; }
+.btn.pri { background: var(--accent); color: var(--accent-ink); flex: 1; }
+.btn.ghost { background: var(--ribbon-soft); color: var(--ribbon); }
+.btn.sec { background: var(--field); color: var(--ink); }
+.foot { display: flex; justify-content: space-between; margin-top: 14px; font-size: 13px; }
+.foot a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.foot span { color: var(--muted); }
+.flt .sec2 { margin-bottom: 14px; }
+.seg { display: flex; background: var(--field); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg span { flex: 1; text-align: center; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 9px; font-size: 13.5px; font-weight: 500; color: var(--muted); }
+.seg .on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(20,30,60,.12); }
+.tp { display: flex; flex-wrap: wrap; gap: 7px; }
+.tp span { height: 34px; border-radius: 17px; padding: 0 13px; display: inline-flex; align-items: center; font-size: 13.5px; background: var(--field); color: var(--ink); }
+.tp .on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.rib2 { position: absolute; right: 0; top: 470px; width: 44px; height: 56px; border-radius: 14px 0 0 14px; background: var(--surface); box-shadow: -2px 3px 14px rgba(20,30,60,.22); display: flex; align-items: center; justify-content: center; }
+.side { position: absolute; left: 0; top: 0; bottom: 0; width: 290px; background: var(--side); padding: 18px 10px; box-shadow: 8px 0 30px rgba(0,0,0,.18); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; padding: 4px 10px 16px; }
+.nav { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border-radius: 12px; font-size: 14.5px; }
+.nav .n { margin-left: auto; color: var(--muted); font-size: 12.5px; }
+.nav.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.nav svg.i.fd { color: var(--folder); }
+.nav.on svg.i.fd { color: var(--accent); }
+.sec-l { font-size: 12px; font-weight: 600; color: var(--muted); padding: 14px 12px 6px; }
+
+.tag.c-tim { background:#F0E9FD; color:#6B3FC4 } .tag.c-la { background:#E3F5E9; color:#1F7A45 } .tag.c-cam { background:#FEEEDF; color:#B45309 }
+.tag.c-hong { background:#FCE8F1; color:#B5306E } .tag.c-ngoc { background:#DFF5F3; color:#11766E }
+.dark .tag.c-tim { background:#2F2547; color:#C4A8FA } .dark .tag.c-la { background:#1E3527; color:#7ED3A0 } .dark .tag.c-cam { background:#40291A; color:#F8B37A }
+.dark .tag.c-hong { background:#43222F; color:#F29BC4 } .dark .tag.c-ngoc { background:#17363A; color:#76D5CB }
+.tp span.c-tim.on { background:#6B3FC4; color:#fff } .tp span .dot { width:8px; height:8px; border-radius:4px; margin-right:7px; display:inline-block }
+.chip.c-tim { background:#F0E9FD; color:#6B3FC4 }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="folder" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5z"/></symbol>
+  <symbol id="more" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18.5" r="1.4"/></symbol>
+  <symbol id="grip" viewBox="0 0 24 24"><path d="M5 9h14M5 15h14"/></symbol>
+  <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+  <symbol id="filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
+  <symbol id="menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="x" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></symbol>
+  <symbol id="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="sort" viewBox="0 0 24 24"><path d="M7 5v14M4 16l3 3 3-3M17 19V5M14 8l3-3 3 3"/></symbol>
+  <symbol id="cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+  <symbol id="all" viewBox="0 0 24 24"><path d="M5 5h14M5 12h14M5 19h14"/></symbol>
+  <symbol id="bm" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></symbol>
+</svg>
+
+<div class="row">
+  <!-- 1. Thư mục -->
+  <div>
+    <p class="cap">Trình quản lý: thư mục như trình duyệt</p>
+    <div class="phone">
+      <div class="top">
+        <span class="ib"><svg class="i"><use href="#menu"/></svg></span>
+        <span class="search"><svg class="i"><use href="#search"/></svg>Tìm dấu trang</span>
+        <span class="ib"><svg class="i"><use href="#filter"/></svg></span>
+        <span class="ib"><svg class="i"><use href="#more"/></svg></span>
+      </div>
+      <div class="crumbs">Dấu trang <svg class="i" style="width:14px;height:14px"><use href="#chev"/></svg> Giải trí <svg class="i" style="width:14px;height:14px"><use href="#chev"/></svg></div>
+      <div class="title"><h1>Anime</h1><span>2 thư mục · 3 dấu trang</span></div>
+      <div class="tools"><span class="pill"><svg class="i" style="width:16px;height:16px"><use href="#sort"/></svg>Tự xếp</span><span class="pill">Chọn nhiều</span></div>
+      <div class="group">
+        <div class="it"><span class="ico f"><svg class="i"><use href="#folder"/></svg></span><div class="tx"><div class="tt">Conan</div><div class="mt">12 mục</div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+        <div class="it"><span class="ico f"><svg class="i"><use href="#folder"/></svg></span><div class="tx"><div class="tt">One Piece</div><div class="mt">8 mục</div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+      </div>
+      <div class="group">
+        <div class="it"><span class="ico b">L</span><div class="tx"><div class="tt">Lịch phát sóng anime mùa thu 2026</div><div class="mt"><span>lichanime.vn</span><span>Lưu 02/11/2026</span></div><div class="tags"><span class="tag c-tim">anime</span><span class="tag c-la">lịch</span></div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+        <div class="it"><span class="ico b">V</span><div class="tx"><div class="tt">Top 20 anime trinh thám hay nhất</div><div class="mt"><span>vidu.vn</span><span>Lưu 28/10/2026</span></div><div class="tags"><span class="tag c-tim">anime</span></div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+        <div class="it"><span class="ico b">W</span><div class="tx"><div class="tt">Studio Ghibli – Wikipedia tiếng Việt</div><div class="mt"><span>vi.wikipedia.org</span><span>Lưu 15/10/2026</span></div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+      </div>
+      <span class="fab"><svg class="i"><use href="#plus"/></svg></span>
+    </div>
+  </div>
+
+  <!-- 2. Kết quả lọc nhiều điều kiện -->
+  <div>
+    <p class="cap">Tìm theo nhiều điều kiện cùng lúc</p>
+    <div class="phone">
+      <div class="top">
+        <span class="ib"><svg class="i"><use href="#menu"/></svg></span>
+        <span class="search"><svg class="i"><use href="#search"/></svg>Tìm dấu trang</span>
+        <span class="ib" style="color:var(--accent)"><svg class="i"><use href="#filter"/></svg><span class="badge">4</span></span>
+        <span class="ib"><svg class="i"><use href="#more"/></svg></span>
+      </div>
+      <div class="title" style="padding-top:8px"><h1>Kết quả</h1><span>2 dấu trang</span></div>
+      <div class="chips">
+        <span class="chip">Tạo trong tháng 8/2026 <svg class="i"><use href="#x"/></svg></span>
+        <span class="chip c-tim">Nhãn: anime <svg class="i"><use href="#x"/></svg></span>
+        <span class="chip">Địa chỉ: vidu.vn <svg class="i"><use href="#x"/></svg></span>
+        <span class="chip">Tên: Conan <svg class="i"><use href="#x"/></svg></span>
+        <span class="clear">Bỏ lọc</span>
+      </div>
+      <div class="group">
+        <div class="it"><span class="ico b">V</span><div class="tx"><div class="tt">Thám tử lừng danh Conan – Tập 1100</div><div class="mt"><span>vidu.vn</span><span>Lưu 12/08/2026</span></div><div class="path">Giải trí › Anime › Conan</div><div class="tags"><span class="tag c-tim">anime</span><span class="tag c-cam">conan</span></div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span></div></div>
+        <div class="it"><span class="ico b">V</span><div class="tx"><div class="tt">Conan movie 29: lịch chiếu Việt Nam</div><div class="mt"><span>vidu.vn</span><span>Lưu 03/08/2026</span></div><div class="path">Giải trí › Anime</div><div class="tags"><span class="tag c-tim">anime</span><span class="tag c-hong">phim</span></div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Bảng lọc -->
+  <div>
+    <p class="cap">Bảng lọc</p>
+    <div class="phone">
+      <div class="scrim" style="background:rgba(17,24,39,.32)"></div>
+      <div class="sheet flt" style="top:70px">
+        <div class="grab"></div>
+        <div class="head" style="justify-content:space-between;margin-bottom:6px"><span class="st">Lọc dấu trang</span><span class="ib"><svg class="i"><use href="#x"/></svg></span></div>
+        <div class="sec2"><div class="fl">Tên có chữ</div><div class="in focus">Conan</div></div>
+        <div class="sec2"><div class="fl">Địa chỉ có chữ</div><div class="in">vidu.vn</div></div>
+        <div class="sec2"><div class="fl">Nhãn (có đủ các nhãn chọn)</div><div class="tp"><span class="c-tim on">anime</span><span><i class="dot" style="background:#B45309"></i>conan</span><span><i class="dot" style="background:#1F7A45"></i>lịch</span><span><i class="dot" style="background:#B5306E"></i>phim</span><span><i class="dot" style="background:#11766E"></i>du lịch</span></div></div>
+        <div class="sec2"><div class="fl">Thời gian · Ngày tạo</div><div class="seg"><span>Đúng ngày</span><span class="on">Trong tháng</span><span>Khoảng ngày</span></div>
+          <div class="in sel" style="margin-top:8px"><span>Tháng 08 / 2026</span><svg class="i" style="color:var(--muted)"><use href="#cal"/></svg></div></div>
+        <div class="sec2"><div class="fl">Phạm vi</div><div class="seg"><span>Thư mục đang xem</span><span class="on">Toàn bộ</span></div></div>
+        <div class="btns"><span class="btn sec">Xóa bộ lọc</span><span class="btn pri">Áp dụng</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Bảng lưu nhanh (Soul) -->
+  <div>
+    <p class="cap">Bảng lưu nhanh (Soul) · cây thư mục</p>
+    <div class="phone">
+      <div class="web"><div class="bar"></div><h2>Thám tử lừng danh Conan – Tập 1100</h2><p>Conan và nhóm thám tử nhí tình cờ phát hiện một manh mối kỳ lạ trong chuyến dã ngoại…</p><p>Tập phim lên sóng tối thứ Bảy với nhiều tình tiết bất ngờ.</p></div>
+      <div class="rib2"><svg viewBox="0 0 20 32" style="width:20px;height:32px"><path d="M2.5 2.5H17.5V29L10 22.5L2.5 29Z" fill="#E5484D" stroke="#E5484D" stroke-width="2.4" stroke-linejoin="round"/></svg></div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="head"><svg class="rib" viewBox="0 0 30 46"><path d="M3 3H27V43L15 34L3 43Z" fill="var(--ribbon)" stroke="var(--ribbon)" stroke-width="3" stroke-linejoin="round"/></svg><div><div class="st">Đã lưu</div><div class="sd">Trong Anime › Conan, ngày 12/08/2026</div></div></div>
+        <div class="fl">Tên</div><div class="in">Thám tử lừng danh Conan – Tập 1100</div>
+        <div class="fl">Thư mục</div><div class="in sel"><span class="fo"><svg class="i"><use href="#folder"/></svg>Giải trí › Anime › Conan</span><svg class="i" style="color:var(--muted)"><use href="#down"/></svg></div>
+        <div class="fl">Nhãn</div><div class="in" style="gap:6px"><span class="tag c-tim">anime</span><span class="tag c-cam">conan</span><span style="color:var(--muted);font-size:14px;margin-left:4px">Thêm nhãn…</span></div>
+        <div class="btns"><span class="btn ghost">Xóa</span><span class="btn pri">Cập nhật</span></div>
+        <div class="foot"><a>Mở trình quản lý</a><span>Cập nhật 12/08 21:40</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row" style="margin-top:28px">
+  <div>
+    <p class="cap">Ngăn thư mục</p>
+    <div class="phone">
+      <div class="top" style="opacity:.4"><span class="ib"></span><span class="search">Tìm dấu trang</span></div>
+      <div class="scrim" style="background:rgba(17,24,39,.32)"></div>
+      <div class="side">
+        <div class="brand"><svg viewBox="0 0 20 32" style="width:15px;height:24px"><path d="M2.5 2.5H17.5V29L10 22.5L2.5 29Z" fill="#E5484D"/></svg>Sổ Dấu Trang</div>
+        <div class="nav"><svg class="i"><use href="#all"/></svg>Tất cả dấu trang<span class="n">142</span></div>
+        <div class="nav"><svg class="i"><use href="#bm"/></svg>Dấu trang (gốc)<span class="n">9</span></div>
+        <div class="sec-l">Thư mục</div>
+        <div class="nav"><svg class="i fd"><use href="#folder"/></svg>Công việc<span class="n">31</span></div>
+        <div class="nav"><svg class="i fd"><use href="#folder"/></svg>Giải trí<span class="n">6</span></div>
+        <div class="nav on" style="margin-left:18px"><svg class="i fd"><use href="#folder"/></svg>Anime<span class="n">3</span></div>
+        <div class="nav" style="margin-left:36px"><svg class="i fd"><use href="#folder"/></svg>Conan<span class="n">12</span></div>
+        <div class="nav" style="margin-left:36px"><svg class="i fd"><use href="#folder"/></svg>One Piece<span class="n">8</span></div>
+        <div class="nav"><svg class="i fd"><use href="#folder"/></svg>Học tập<span class="n">40</span></div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <p class="cap">Chế độ tối (theo máy)</p>
+    <div class="phone dark">
+      <div class="top">
+        <span class="ib"><svg class="i"><use href="#menu"/></svg></span>
+        <span class="search"><svg class="i"><use href="#search"/></svg>Tìm dấu trang</span>
+        <span class="ib"><svg class="i"><use href="#filter"/></svg></span>
+        <span class="ib"><svg class="i"><use href="#more"/></svg></span>
+      </div>
+      <div class="crumbs">Dấu trang <svg class="i" style="width:14px;height:14px"><use href="#chev"/></svg> Giải trí <svg class="i" style="width:14px;height:14px"><use href="#chev"/></svg></div>
+      <div class="title"><h1>Anime</h1><span>2 thư mục · 3 dấu trang</span></div>
+      <div class="tools"><span class="pill"><svg class="i" style="width:16px;height:16px"><use href="#sort"/></svg>Tự xếp</span><span class="pill">Chọn nhiều</span></div>
+      <div class="group">
+        <div class="it"><span class="ico f"><svg class="i"><use href="#folder"/></svg></span><div class="tx"><div class="tt">Conan</div><div class="mt">12 mục</div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+        <div class="it"><span class="ico f"><svg class="i"><use href="#folder"/></svg></span><div class="tx"><div class="tt">One Piece</div><div class="mt">8 mục</div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+      </div>
+      <div class="group">
+        <div class="it"><span class="ico b">L</span><div class="tx"><div class="tt">Lịch phát sóng anime mùa thu 2026</div><div class="mt"><span>lichanime.vn</span><span>Lưu 02/11/2026</span></div><div class="tags"><span class="tag c-tim">anime</span><span class="tag c-la">lịch</span></div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+        <div class="it"><span class="ico b">V</span><div class="tx"><div class="tt">Top 20 anime trinh thám hay nhất</div><div class="mt"><span>vidu.vn</span><span>Lưu 28/10/2026</span></div><div class="tags"><span class="tag c-tim">anime</span></div></div><div class="acts"><span class="ib"><svg class="i"><use href="#more"/></svg></span><span class="ib grip"><svg class="i"><use href="#grip"/></svg></span></div></div>
+      </div>
+      <span class="fab" style="box-shadow:0 8px 22px rgba(0,0,0,.45)"><svg class="i"><use href="#plus"/></svg></span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

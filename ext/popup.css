@@ -1,0 +1,23 @@
+/* Sổ Dấu Trang 2.0 — popup / bảng lưu nhanh */
+.pop { width: 380px; background: var(--surface); }
+@media (pointer: coarse), (max-width: 379px) { .pop { width: auto; } }
+.pop main, main.pop { padding: 0 18px 16px; }
+.loading { padding: 20px 0; color: var(--muted); }
+.p-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.ribbon { flex: none; width: 30px; height: 46px; margin-left: 2px; }
+.ribbon-svg { display: block; width: 30px; height: 46px; overflow: visible; }
+.ribbon-svg path { fill: none; stroke: var(--accent); }
+.ribbon-svg.on path { fill: var(--ribbon); stroke: var(--ribbon); }
+.ribbon.on { animation: drop .32s cubic-bezier(.2, .9, .3, 1.2); }
+@keyframes drop { from { transform: translateY(-12px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ribbon.on { animation: none; } }
+.p-status { padding-top: 8px; min-width: 0; }
+.p-state { font-size: 19px; font-weight: 600; line-height: 1.3; }
+.p-detail { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.p-note { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+.p-form { display: grid; gap: 4px; }
+.p-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.p-actions .btn.primary { flex: 1; }
+.p-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; }
+.p-meta { color: var(--muted); font-size: 12.5px; }
+.pop .toast { bottom: 12px; }

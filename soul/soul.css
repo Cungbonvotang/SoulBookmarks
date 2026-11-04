@@ -1,0 +1,37 @@
+/* Sổ Dấu Trang 2.0 — bản Soul (trong Shadow DOM) */
+:host { --font: system-ui, Roboto, 'Segoe UI', 'Noto Sans', sans-serif; }
+.sdt.soul { background: transparent; color: var(--ink); font: 400 15px/1.5 var(--font); }
+
+/* nút ruy băng nổi */
+.rib {
+  position: fixed; right: 0; top: 62vh; width: 44px; height: 58px; padding: 0; margin: 0;
+  border: 0; border-radius: 14px 0 0 14px;
+  background: var(--surface); box-shadow: -2px 3px 14px rgba(20, 30, 60, .22);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; opacity: .96; z-index: 1;
+}
+.rib.dragging { opacity: 1; box-shadow: -4px 6px 20px rgba(20, 30, 60, .32); }
+.rib-shape { display: block; width: 20px; height: 32px; }
+.rib-shape svg { display: block; width: 20px; height: 32px; overflow: visible; }
+.rib-shape path { fill: none; stroke: var(--accent); }
+.rib[data-state="on"] .rib-shape path { fill: var(--ribbon); stroke: var(--ribbon); }
+.rib[data-state="err"] .rib-shape path { stroke: var(--muted); stroke-dasharray: 3 2; }
+
+/* bảng lưu nhanh */
+.psheet {
+  margin: auto 0 0; padding: 0 0 8px; border: 0; width: 100vw; max-width: 100vw; max-height: 90vh;
+  border-radius: 22px 22px 0 0; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-2); overflow: auto;
+  font: 400 15px/1.5 var(--font);
+}
+.psheet::backdrop { background: rgba(17, 24, 39, .42); }
+@media (min-width: 641px) { .psheet { margin: auto; width: 420px; border-radius: 20px; } }
+.psheet-bar { display: flex; align-items: center; justify-content: flex-end; position: relative; height: 44px; padding: 0 6px; }
+.psheet-grip { position: absolute; left: 50%; top: 10px; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: var(--line); }
+.psheet .pop { width: auto; background: transparent; }
+
+/* trình quản lý lớp phủ */
+.ovl {
+  position: fixed; inset: 0; z-index: 2; overflow: auto; overscroll-behavior: contain;
+  background: var(--bg); color: var(--ink); font: 400 15px/1.5 var(--font);
+}
+.ovl .layout { min-height: 100%; }

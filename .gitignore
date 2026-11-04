@@ -1,0 +1,6 @@
+tests/out/
+__pycache__/
+build/
+*.pem
+*.zip
+*.crx
