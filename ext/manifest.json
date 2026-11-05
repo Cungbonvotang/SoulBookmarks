@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sổ Dấu Trang",
   "short_name": "Dấu Trang",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Lưu dấu trang theo thư mục và nhãn, tìm theo tên, địa chỉ, nhãn, ngày; báo trang đang mở đã lưu hay chưa.",
   "permissions": [
     "storage",

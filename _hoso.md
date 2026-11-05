@@ -141,6 +141,15 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: tệp HTML không phải tệp dấu trang, hoặc không có dấu trang/thư mục nào → báo lỗi, dữ liệu giữ nguyên.
   - Không đổi: "Chép / Dán dữ liệu" của bản Soul vẫn là JSON.
 
+- CN-20 Đổi chữ hàng loạt ở tên / địa chỉ. [mới ở 2.4.0]
+  - Mở: nút ⋯ → "Đổi chữ các kết quả (N)" khi đang tìm (áp cho mọi kết quả), hoặc nút "Đổi chữ" trên thanh chọn nhiều (áp cho dấu trang đã chọn; thư mục bỏ qua).
+  - Hộp "Đổi chữ hàng loạt": Đổi ở (Địa chỉ / Tên / Cả hai), Tìm (điền sẵn chữ đang tìm), Thay bằng, Aa phân biệt hoa thường, .* Regex ($1, $2… giữ phần đã bắt). Không bật Regex thì chữ tìm hiểu đúng như gõ (dấu "." là dấu chấm).
+  - Chấp nhận: tìm "www.sangtacviet.com" → ⋯ → Đổi chữ các kết quả → Thay bằng "www.sangtacviet.app" → xem trước "Sẽ đổi N dấu trang." kèm tối đa 5 dòng cũ → mới → bấm "Đổi N dấu trang" → địa chỉ đổi, ngày cập nhật = lúc đổi, thông báo kèm Hoàn tác. Mục không chứa chữ cần tìm giữ nguyên (cả ngày cập nhật).
+  - Biên: địa chỉ mới không hợp lệ hoặc tên thành rỗng → bỏ qua mục đó, xem trước và thông báo ghi số mục bỏ kèm lý do; tên > 500 ký tự → cắt.
+  - Biên: địa chỉ mới trùng dấu trang khác (so theo CN-05) → vẫn đổi, báo "N mục trùng địa chỉ với dấu trang khác".
+  - Biên: Regex sai / quá 200 ký tự / chạy quá lâu → báo trong hộp, nút Đổi mờ. Không có mục nào đổi → nút Đổi mờ.
+  - Biên: đổi > 500 mục → hiện "Đang đổi N dấu trang…" trong lúc ghi.
+
 - CN-19 (bản Soul) Giữ dấu trang qua các lần cập nhật script. [mới ở 2.2.0] Nút cập nhật trong danh sách script của Soul xóa kho GM của script được cập nhật (người dùng báo 2026-11-04).
   - Thêm script thứ hai "Sổ Dấu Trang – Kho" (so-dau-trang-kho.user.js, @version 1.0.0 cố định, không có @updateURL/@downloadURL): chỉ cất và trả dữ liệu. Script chính đọc/ghi qua Kho.
   - Chấp nhận: có Kho → bấm cập nhật script chính (kho riêng của nó bị xóa) → mở trang → đủ dấu trang, nút ruy băng đúng; lưu thêm được; vị trí nút ruy băng cũng giữ.
@@ -342,19 +351,28 @@ Bản 2.3.0 (CN-06 cách so chữ) — thêm 2026-11-05.
 - CT-102 (CN-06) Bật Regex: ô tìm ghi "Tìm bằng regex"; gõ "tập (" → báo lỗi dưới đầu danh sách; gõ "tập \d+" → 5 kết quả; thêm Aa → 4.
 - CT-103 (CN-06) Bật Đúng cụm: "Hà Nội" → 1 kết quả; "ha noi" → "Không tìm thấy"; "Xóa bộ lọc" → hết thẻ, ô tìm về "Tìm dấu trang".
 - CT-104 (CN-06, CN-12) Bản Soul: trong lớp phủ, Regex "tập \d+" → 5, regex sai → báo lỗi, thêm Aa → 4.
+Bản 2.4.0 (CN-20 đổi chữ hàng loạt) — thêm 2026-11-06.
+- CT-105 (CN-20) Hàm thuần: đổi "www.sangtacviet.com" → "www.sangtacviet.app" ở địa chỉ: đổi 2 mục (kể cả viết HOA), khóa địa chỉ mới, ngày cập nhật = lúc đổi, mục khác giữ nguyên đối tượng; báo 1 mục trùng; 2 mẫu xem trước; giữ tên, nhãn, thư mục, ngày tạo; chỉ đổi mục được chọn.
+- CT-106 (CN-20) Aa chỉ đổi đúng hoa thường; Regex "Truyện (\w)" → "Chương $1" ở tên; "Cả hai" đổi cả tên và địa chỉ.
+- CT-107 (CN-20) Bỏ "https://" → 3 mục bỏ qua vì địa chỉ không hợp lệ; tên thành rỗng → bỏ qua; tên > 500 → cắt.
+- CT-108 (CN-20) Chưa nhập chữ tìm → lỗi; Regex sai → lỗi; "." không bật Regex là dấu chấm; dữ liệu sau đổi hợp lệ.
+- CT-109 (CN-20, CN-17) Hàm thuần: 10.000 mục đổi trong 20.000 mục chọn < 1 giây.
+- CT-110 (CN-20) Giao diện: tìm "www.sangtacviet.com" → "2 kết quả" → ⋯ → "Đổi chữ các kết quả (2)" → Tìm điền sẵn → xem trước "Sẽ đổi 2 dấu trang. 1 mục sẽ trùng…", 2 dòng mẫu, nút "Đổi 2 dấu trang" → đổi đúng, mục khác giữ nguyên → Hoàn tác trả lại.
+- CT-111 (CN-20) Chọn 2 mục → "Đổi chữ" → hộp ghi "Áp dụng cho 2 dấu trang" → Tên + Regex → chỉ 2 mục đổi.
+- CT-112 (CN-20) Regex sai → xem trước báo lỗi, nút mờ; bỏ "https://" → "Không có dấu trang nào đổi. Bỏ qua 4 mục…", nút mờ; hộp không cuộn ngang.
+- CT-113 (CN-20, CN-17) Tốc độ (từ lúc bấm Đổi tới thông báo "Đã đổi", có "Đang đổi…"): 12.000 dấu trang đổi 3.000 ≤ 3 s; 50.000 dấu trang đổi 10.000 ≤ 3 s (mục tiêu đã duyệt).
+- CT-114 (CN-20, CN-12) Bản Soul: ⋯ → Đổi chữ các kết quả trong lớp phủ → đổi đúng 4 mục.
+- CT-C3 khung 360: thanh chọn nhiều đủ 6 nút, không cuộn ngang, nút ≥ 44px.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-05, bản 2.3.0, giờ Asia/Ho_Chi_Minh.
-- Hàm thuần + kho chia phần (tests/core.test.js): 52/52 qua.
-- Cách so chữ, hàm thuần (tests/search.test.js): 17/17 qua — CT-94…CT-99. 50.000 dấu trang: hoa thường 15 ms, đúng cụm 43 ms, regex 23 ms, mặc định 11 ms.
-- Cách so chữ trên bản tiện ích (tests/search_ui_test.py): 8/8 qua — CT-100…CT-103, CT-C1, CT-C3.
-- Nhập/xuất HTML: hàm thuần 32/32, giao diện 21/21 qua.
-- Bản tiện ích (tests/ui_test.py): 66/66 qua.
-- Bản Soul (tests/soul_test.py): 22/22 qua — thêm CT-104.
-- Script Kho (tests/kho_test.py): 11/11 qua.
-- Tốc độ (tests/perf_test.py): 12/12 qua — gõ tìm [143, 125, 132] ms, lọc 47 ms; 100.000 dấu trang tìm [151, 139, 217] ms.
-- Chưa thử được ở máy: Soul thật (bàn phím điện thoại gõ ký tự regex như \ ^ |); các mục chưa thử của bản trước.
+2026-11-06, bản nháp 2.4.0 (nhánh ban-2.4.0, chưa phát hành lên main), giờ Asia/Ho_Chi_Minh.
+- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17 (CT-105…CT-109).
+- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 8/9.
+- TRƯỢT CT-113 phần 50.000 dấu trang đổi 10.000: 6,88 s (mục tiêu 3 s). Phần 12.000 dấu trang đổi 3.000: 1,84 s — qua.
+  Nguyên nhân (đo): các mục đổi rải đều 64 phần dữ liệu nên phải ghi lại gần hết; riêng việc chrome.storage ghi các phần đã đổi (kèm báo thay đổi cho các trang khác) mất ~3,9 s ở 50.000 dấu trang. Đọc ~1,1 s, tính toán ~0,3 s. Không phải lỗi của phần đổi chữ; các thao tác hàng loạt khác (xóa, thêm nhãn nhiều mục rải rác) cũng chịu chi phí này.
+- Bản Soul: 23/23 (thêm CT-114). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
+- Chưa thử được ở máy: Soul thật với ~11.000 dấu trang trong Kho.
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.

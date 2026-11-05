@@ -608,6 +608,60 @@
     if (timedOut) return { items: [], swapped: r.swapped, from: r.from, to: r.to, error: 'Tìm quá lâu nên đã dừng. Hãy viết biểu thức đơn giản hơn.' };
     return { items: sortBookmarks(items, q.sort), swapped: r.swapped, from: r.from, to: r.to };
   }
+  /* ---------- đổi chữ hàng loạt ở tên / địa chỉ (2.4.0) ---------- */
+  // opt: { field: 'url' | 'title' | 'both', find, replace, caseSensitive, regex }
+  // Trả về { ok, data, changed, skipped:[{id,title,reason}], dups, samples:[{id, field, before, after}] } hoặc { ok:false, error }.
+  function bulkReplace(data, ids, opt, now) {
+    const o = assign({ field: 'url', find: '', replace: '', caseSensitive: false, regex: false }, opt || {});
+    const find = String(o.find == null ? '' : o.find).normalize('NFC');
+    if (!find) return { ok: false, error: 'Nhập chữ cần tìm.' };
+    if (o.regex && find.length > REGEX_MAX) return { ok: false, error: 'Biểu thức dài quá ' + REGEX_MAX + ' ký tự.' };
+    let re;
+    try {
+      re = new RegExp(o.regex ? find : find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g' + (o.caseSensitive ? '' : 'i') + 'u');
+    } catch (e) { return { ok: false, error: 'Biểu thức chưa đúng: ' + e.message.replace(/^Invalid regular expression: /, '') }; }
+    const rep = String(o.replace == null ? '' : o.replace).normalize('NFC');
+    const swap = s => (o.regex ? s.replace(re, rep) : s.replace(re, () => rep));
+    const want = new Set(ids);
+    const doTitle = o.field === 'title' || o.field === 'both';
+    const doUrl = o.field === 'url' || o.field === 'both';
+    const skipped = [], samples = [], changedIds = new Set();
+    const t0 = Date.now();
+    const bookmarks = new Array(data.bookmarks.length);
+    for (let i = 0; i < data.bookmarks.length; i++) {
+      const b = data.bookmarks[i];
+      bookmarks[i] = b;
+      if (!want.has(b.id)) continue;
+      if (o.regex && (i & 15) === 15 && Date.now() - t0 > SEARCH_BUDGET_MS * 2) return { ok: false, error: 'Biểu thức chạy quá lâu nên đã dừng. Hãy viết đơn giản hơn.' };
+      let title = b.title, url = b.url;
+      if (doTitle) {
+        const nt = squash(swap(b.title.normalize('NFC'))).slice(0, 500);
+        if (nt !== b.title.normalize('NFC')) {
+          if (!nt) { skipped.push({ id: b.id, title: b.title, reason: 'tên thành rỗng' }); continue; }
+          title = nt;
+        }
+      }
+      if (doUrl) {
+        const nu = swap(b.url).trim();
+        if (nu !== b.url) {
+          const fx = /^(https?|ftp|file):/i.test(nu) ? fixUrl(nu) : { ok: false };
+          if (!fx.ok) { skipped.push({ id: b.id, title: b.title, reason: 'địa chỉ mới không hợp lệ: ' + nu.slice(0, 80) }); continue; }
+          url = fx.url;
+        }
+      }
+      if (title === b.title && url === b.url) continue;
+      if (samples.length < 5) samples.push({ id: b.id, before: { title: b.title, url: b.url }, after: { title, url } });
+      bookmarks[i] = assign(b, { title, url, urlKey: url === b.url ? b.urlKey : normalizeUrl(url), updatedAt: now });
+      changedIds.add(b.id);
+    }
+    let dups = 0;
+    if (doUrl && changedIds.size) {
+      const cnt = new Map();
+      for (const b of bookmarks) cnt.set(b.urlKey, (cnt.get(b.urlKey) || 0) + 1);
+      for (const b of bookmarks) if (changedIds.has(b.id) && cnt.get(b.urlKey) > 1) dups++;
+    }
+    return { ok: true, data: assign(data, { bookmarks }), changed: changedIds.size, skipped, dups, samples };
+  }
   // Nội dung một thư mục (null = gốc): thư mục con rồi dấu trang trực tiếp.
   function listFolder(data, folderId, sort) {
     const fid = folderId || null;
@@ -967,7 +1021,7 @@
     byOrder, getFolder, childMap, childrenOf, descendantIds, folderPath, folderChain, folderLabel, folderTreeList,
     validateFolderName, uniqueName, addFolder, renameFolder, moveFolder, folderContent, deleteFolder,
     placeItems, copyItems, findByUrl, addBookmark, updateBookmark, deleteBookmarks, restoreBookmarks, bulkAddTags, bulkMove, deleteItems,
-    isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, normalizeRange, hasDate, hasFilters, isSearching,
+    isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, bulkReplace, normalizeRange, hasDate, hasFilters, isSearching,
     sortBookmarks, foldedOf, search, listFolder, folderStats,
     validateData, fixRefs, migrate, mergeData, diffData, exportFileName, exportPayload, localDay,
     exportHtmlFileName, isBookmarksHtml, decodeEntities, parseBookmarksHtml, mergeImported, exportHtml,

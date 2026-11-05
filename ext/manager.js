@@ -388,6 +388,7 @@
           bb('bulk-move', 'Chuyển', 'move', () => moveItemsDlg(items)),
           bb('bulk-cut', 'Cắt', 'cut', () => setClip('cut', items)),
           bb('bulk-copy', 'Sao chép', 'copy', () => setClip('copy', items)),
+          bb('bulk-replace', 'Đổi chữ', 'edit', () => openReplace(items.filter(i => i.kind === 'b').map(i => i.id)), { disabled: none || !items.some(i => i.kind === 'b') }),
           bb('bulk-delete', 'Xóa', 'trash', () => deleteItemsDlg(items), { class: 'bbtn danger-text' })));
     }
     function updateFilterBadge() {
@@ -577,6 +578,80 @@
       const label = items.length === 1 && items[0].kind === 'b' ? 'Đã xóa “' + ((bookmarkById(items[0].id) || {}).title || '') + '”.' : 'Đã xóa ' + items.length + ' mục.';
       await commit(r.data, { keepScroll: true, undo: label });
     }
+    /* ---------- đổi chữ hàng loạt (tên / địa chỉ) ---------- */
+    async function openReplace(ids) {
+      if (!ids.length) return;
+      const q = S.q;
+      const pre = q.urlText.trim() ? { field: 'url', find: q.urlText.trim() } : q.title.trim() ? { field: 'title', find: q.title.trim() } : { field: 'url', find: q.text.trim() };
+      const find = h('input', { type: 'text', 'data-test': 'rp-find', value: pre.find, placeholder: 'Ví dụ: www.sangtacviet.com', autocomplete: 'off', spellcheck: 'false' });
+      const withEl = h('input', { type: 'text', 'data-test': 'rp-with', value: '', placeholder: 'Ví dụ: www.sangtacviet.app', autocomplete: 'off', spellcheck: 'false' });
+      const fieldSeg = seg('rp-field', [['url', 'Địa chỉ'], ['title', 'Tên'], ['both', 'Cả hai']], pre.field, 'rp-field');
+      const opt = (test, label, hint, checked) => {
+        const cb = h('input', { type: 'checkbox', 'data-test': test, checked });
+        return { cb, el: h('label', { class: 'optrow' }, cb, h('span', {}, h('b', {}, label), h('small', {}, hint))) };
+      };
+      const oCase = opt('rp-case', 'Aa  Phân biệt hoa thường', 'Chỉ đổi chỗ viết đúng hoa thường.', !!q.caseSensitive);
+      const oRegex = opt('rp-regex', '.*  Regex', 'Dùng $1, $2… trong “Thay bằng” để giữ phần đã bắt.', !!q.regex);
+      const info = h('p', { class: 'rp-info', 'data-test': 'rp-preview', role: 'status' });
+      const list = h('div', { class: 'rp-samples' });
+      const body = h('div', { class: 'filter rp' },
+        h('p', { class: 'muted' }, 'Áp dụng cho ' + ids.length + ' dấu trang. Mục không chứa chữ cần tìm giữ nguyên.'),
+        h('section', {}, h('span', { class: 'lab' }, 'Đổi ở'), fieldSeg),
+        h('section', {}, h('label', { class: 'field' }, h('span', { class: 'lab' }, 'Tìm'), find)),
+        h('section', {}, h('label', { class: 'field' }, h('span', { class: 'lab' }, 'Thay bằng'), withEl)),
+        h('section', {}, oCase.el, oRegex.el),
+        h('section', {}, info, list));
+      const opts = () => ({ field: segValue(body, 'rp-field') || 'url', find: find.value, replace: withEl.value, caseSensitive: oCase.cb.checked, regex: oRegex.cb.checked });
+      let last = null, timer = 0, okBtn = null;
+      const preview = () => {
+        const r = last = SDT.bulkReplace(S.data, ids, opts(), Date.now());
+        list.textContent = '';
+        info.classList.toggle('err', !r.ok);
+        if (!r.ok) { info.textContent = r.error; }
+        else {
+          const bits = [r.changed ? 'Sẽ đổi ' + r.changed + ' dấu trang.' : 'Không có dấu trang nào đổi.'];
+          if (r.skipped.length) bits.push('Bỏ qua ' + r.skipped.length + ' mục (' + r.skipped[0].reason + (r.skipped.length > 1 ? '…' : '') + ').');
+          if (r.dups) bits.push(r.dups + ' mục sẽ trùng địa chỉ với dấu trang khác.');
+          info.textContent = bits.join(' ');
+          const f = opts().field;
+          for (const x of r.samples) {
+            const lines = [];
+            if (f !== 'title' && x.before.url !== x.after.url) lines.push([x.before.url, x.after.url]);
+            if (f !== 'url' && x.before.title !== x.after.title) lines.push([x.before.title, x.after.title]);
+            for (const [a, b2] of lines) list.append(h('div', { class: 'rp-row', 'data-test': 'rp-sample' }, h('s', {}, a), h('span', { class: 'rp-arrow' }, '→'), h('b', {}, b2)));
+          }
+        }
+        if (okBtn) {
+          const n = r.ok ? r.changed : 0;
+          okBtn.disabled = !n;
+          okBtn.textContent = n ? 'Đổi ' + n + ' dấu trang' : 'Đổi';
+        }
+      };
+      const later = () => { clearTimeout(timer); timer = setTimeout(preview, 150); };
+      for (const el of [find, withEl]) el.addEventListener('input', later);
+      for (const el of [fieldSeg, oCase.cb, oRegex.cb]) el.addEventListener('change', preview);
+      let ready = null;
+      const v = await openDialog({
+        title: 'Đổi chữ hàng loạt', test: 'dlg-replace-text', sheet: true, wide: true, body,
+        actions: [{ label: 'Hủy', value: null, test: 'rp-cancel', kind: 'quiet' }, { label: 'Đổi', value: 'go', kind: 'primary', test: 'rp-ok', cls: 'grow' }],
+        onOpen: api => { okBtn = api.el.querySelector('[data-test="rp-ok"]'); preview(); },
+        onAction: async () => {
+          clearTimeout(timer);
+          const r = SDT.bulkReplace(S.data, ids, opts(), Date.now());
+          if (!r.ok) return r.error;
+          if (!r.changed) return 'Không có dấu trang nào đổi.';
+          ready = r;
+          return true;
+        },
+      });
+      // Ghi sau khi hộp đã đóng để thông báo (kèm Hoàn tác) không mất theo hộp.
+      if (v !== 'go' || !ready) return;
+      const r = ready;
+      const extra = (r.skipped.length ? ' Bỏ qua ' + r.skipped.length + ' mục.' : '') + (r.dups ? ' ' + r.dups + ' mục trùng địa chỉ với dấu trang khác.' : '');
+      if (r.changed > 500) { toast('Đang đổi ' + r.changed + ' dấu trang…'); await new Promise(res => setTimeout(res, 30)); }
+      await commit(r.data, { keepScroll: true, undo: 'Đã đổi ' + r.changed + ' dấu trang.' + extra });
+    }
+
     async function bulkTag(items) {
       const val = await promptDialog({
         title: 'Thêm nhãn cho ' + items.length + ' dấu trang', label: 'Nhãn (cách nhau bằng dấu phẩy)', okText: 'Thêm nhãn', test: 'dlg-bulk-tag',
@@ -1006,6 +1081,8 @@
         { label: 'Thêm dấu trang', icon: 'plus', test: 'menu-add', onSelect: () => openEditor(null) },
         { label: 'Thư mục mới', icon: 'folderPlus', test: 'menu-folder', onSelect: () => newFolder(folderView() ? curFolderId() : null) },
         'sep',
+        searching() && S.entries.length ? { label: 'Đổi chữ các kết quả (' + S.entries.length + ')', icon: 'edit', test: 'menu-replace',
+          onSelect: () => openReplace(S.entries.filter(e => e.kind === 'b').map(e => e.item.id)) } : null,
         { label: 'Nhãn và màu nhãn', icon: 'tag', test: 'menu-tags', onSelect: openTags },
         { label: 'Sao lưu: xuất / nhập', icon: 'paste', test: 'menu-backup', onSelect: openBackup },
       ], null, 'Sổ Dấu Trang');

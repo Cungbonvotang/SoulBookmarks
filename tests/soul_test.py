@@ -359,6 +359,19 @@ with sync_playwright() as p:
     ok('CT-104 Soul: regex, hoa thường trong lớp phủ', c104a == '5 kết quả' and e104 and c104b == '4 kết quả', [c104a, e104, c104b])
     V.close()
 
+    # CT-114 đổi chữ hàng loạt trong lớp phủ
+    V = newpage(ctx, f'{L}/trang-hai.html')
+    seed_sample(V); open_mgr(V)
+    T(V, 'search-input').fill('vidu.vn/conan'); W(V, 400)
+    T(V, 'btn-more').click(); W(V, 250); T(V, 'menu-replace').click(); W(V, 300)
+    T(V, 'rp-with').fill('vidu.app/conan'); W(V, 400)
+    pv114 = T(V, 'rp-preview').inner_text()
+    T(V, 'rp-ok').click(); W(V, 600)
+    n114 = sum(1 for b in data(V)['bookmarks'] if 'vidu.app/conan' in b['url'])
+    t114 = T(V, 'toast-msg').inner_text()
+    ok('CT-114 Soul: đổi chữ các kết quả', pv114.startswith('Sẽ đổi 4 dấu trang') and n114 == 4 and t114.startswith('Đã đổi 4 dấu trang'), [pv114, n114, t114])
+    V.close()
+
     # CT-C7 dữ liệu hỏng
     snap = dict(GM)
     GM['sdt_b_3'] = json.dumps('không phải danh sách')
