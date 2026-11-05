@@ -126,6 +126,13 @@ a.rtitle:hover { color: var(--accent); }
 .backup section { display: grid; gap: 8px; }
 .backup .btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
 .backup .btnrow .btn { flex: 1 1 140px; }
+.optrow { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 8px 4px; border-radius: 12px; cursor: pointer; }
+.optrow input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+.optrow span { display: grid; gap: 2px; min-width: 0; }
+.optrow b { font-weight: 600; font-size: 14.5px; white-space: pre; }
+.optrow small { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.optrow.off { opacity: .45; }
+.lh-notice.err { color: var(--ribbon); font-weight: 600; }
 .h3row { display: flex; justify-content: space-between; align-items: center; }
 .tagpick { display: flex; flex-wrap: wrap; gap: 7px; max-height: 210px; overflow: auto; }
 .tpick { position: relative; border-radius: 17px; }

@@ -348,6 +348,17 @@ with sync_playwright() as p:
     ok('CT-84 chừa 64px ở đáy cho thanh công cụ của Soul', all(v <= ih - 64 for v in gaps.values()), [ih, gaps])
     Y.close()
 
+    # CT-104 cách so chữ trong lớp phủ (regex + hoa thường)
+    V = newpage(ctx, f'{L}/trang-hai.html')
+    seed_sample(V); open_mgr(V)
+    T(V, 'btn-filter').click(); W(V, 300); T(V, 'filter-regex').set_checked(True, force=True); T(V, 'filter-apply').click(); W(V, 300)
+    T(V, 'search-input').fill('tập \\d+'); W(V, 400); c104a = T(V, 'list-count').inner_text().strip()
+    T(V, 'search-input').fill('tập ('); W(V, 400); e104 = T(V, 'search-error').count() == 1
+    T(V, 'btn-filter').click(); W(V, 300); T(V, 'filter-case').set_checked(True, force=True); T(V, 'filter-apply').click(); W(V, 300)
+    T(V, 'search-input').fill('tập \\d+'); W(V, 400); c104b = T(V, 'list-count').inner_text().strip()
+    ok('CT-104 Soul: regex, hoa thường trong lớp phủ', c104a == '5 kết quả' and e104 and c104b == '4 kết quả', [c104a, e104, c104b])
+    V.close()
+
     # CT-C7 dữ liệu hỏng
     snap = dict(GM)
     GM['sdt_b_3'] = json.dumps('không phải danh sách')

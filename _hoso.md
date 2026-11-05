@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.2.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.3.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -54,6 +54,13 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: "Từ" sau "Đến" → tự đổi chỗ hai ngày và báo nhỏ.
   - Biên: không có kết quả → hiện "Không tìm thấy" và nút "Xóa bộ lọc".
   - Biên: đang tìm/lọc thì danh sách chỉ hiện dấu trang khớp (không hiện thư mục), mỗi dấu trang ghi đường dẫn thư mục; chạm đường dẫn → mở thư mục đó.
+  - Cách so chữ [mới ở 2.3.0]: bảng lọc có mục "Cách so chữ" với ba công tắc, áp dụng cho ô tìm chung, "Tên có chữ", "Địa chỉ có chữ" (không áp cho Nhãn):
+    - Aa Phân biệt hoa thường: "Conan" không khớp "conan"; dấu vẫn bỏ qua khi không bật Đúng cụm/Regex.
+    - "…" Đúng cụm: khớp nguyên cụm đã gõ, liền nhau, đúng thứ tự, kể cả dấu ("Hà Nội" không khớp "Hà Đông và Nội Bài", không khớp "ha noi").
+    - .* Regex: biểu thức chính quy chạy trên chữ gốc có dấu, từng ô riêng (tên, địa chỉ, nhãn) nên ^ $ theo từng ô; hoa thường theo công tắc Aa.
+    - Tắt cả ba: như cũ. Công tắc đang bật hiện thành thẻ (×), tính vào số trên nút Lọc; "Bỏ lọc"/"Xóa bộ lọc" tắt hết; không nhớ sau khi đóng trình quản lý.
+    - Biên: bật cả Regex và Đúng cụm → Regex thắng, Đúng cụm mờ đi. Regex sai → báo "Biểu thức chưa đúng: …" dưới đầu danh sách, không có kết quả. Regex > 200 ký tự → báo. Tìm regex quá 1,5 giây → dừng, báo "Tìm quá lâu nên đã dừng" (một mục đơn lẻ cực nặng vẫn có thể làm chậm).
+    - Biên: ô tìm đổi chữ gợi ý theo cách đang bật ("Tìm bằng regex", "Tìm đúng cụm").
   - Bỏ so với 1.x: lựa chọn "Tìm từ khóa trong Tất cả/Tên/Địa chỉ/Nhãn" (thay bằng hai ô "Tên có chữ", "Địa chỉ có chữ" dùng được cùng lúc).
 
 - CN-07 Sắp xếp danh sách: "Tự xếp" (thứ tự người dùng kéo thả; mặc định khi xem một thư mục hoặc gốc), "Mới lưu trước" (mặc định ở "Tất cả dấu trang" và khi đang tìm/lọc), "Mới cập nhật trước", "Tên A–Z", "Tên Z–A". Không phải "Tự xếp" thì không kéo thả được; thư mục vẫn đứng trước dấu trang và xếp theo tên. [đổi ở 2.0.0]
@@ -323,18 +330,31 @@ Bản 2.2.0 (CN-19 script Kho) — thêm 2026-11-04. Cách chạy: hai kho GM gi
 - CT-91 (CN-19, CN-17) 50.000 dấu trang trong Kho: mở trang đã lưu → ruy băng "đã lưu", phần kiểm tra ≤ 30 ms (3 lần).
 - CT-92 (CN-19, CN-11) Trang bảo mật chặt (Trusted Types, CSP) có Kho → vẫn dùng Kho, bảng lưu nhanh mở được.
 - CT-93 (CN-19) Tiêu đề: Kho @version 1.0.0, @run-at document-start, không có @updateURL/@downloadURL; script chính có @grant unsafeWindow và @updateURL.
+Bản 2.3.0 (CN-06 cách so chữ) — thêm 2026-11-05.
+- CT-94 (CN-06) Tắt cả ba công tắc: "ha noi" và "HÀ NỘI" ra cùng kết quả như trước.
+- CT-95 (CN-06) Aa: tên "Conan" → 5 dấu trang; "conan" → 0; "Tham tu" khớp "Thám tử", "tham tu" → 0.
+- CT-96 (CN-06) Đúng cụm: "Hà Nội" → chỉ "Du lịch Hà Nội" (không khớp "Hà Đông và Nội Bài"); "Nội Hà", "ha noi" → 0; "hà nội" khớp, thêm Aa → 0; cụm trong địa chỉ.
+- CT-97 (CN-06) Regex: "tập \d+" ở tên → 5, thêm Aa → 4; "^Du lịch" ở ô chung → 1; "^https://vidu\.vn/conan" ở địa chỉ; "conan|github" ở ô chung; bật cả Đúng cụm → như Regex.
+- CT-98 (CN-06) Regex sai "tập (" → báo lỗi, 0 kết quả; > 200 ký tự → báo; "^(a+)+$" trên 400 mục nặng → dừng và báo trong vài giây.
+- CT-99 (CN-06, CN-17) 50.000 dấu trang: mỗi cách so chữ ≤ 150 ms ở hàm thuần; gõ tìm trên giao diện vẫn ≤ 200 ms (CT-71).
+- CT-100 (CN-06) Bảng lọc có "Cách so chữ" với ba công tắc, mỗi dòng ≥ 44px; bật Regex → Đúng cụm mờ, tắt → dùng lại được.
+- CT-101 (CN-06) Bật Aa + tên "conan" → "0 kết quả", có thẻ Aa; bấm × trên thẻ → "5 kết quả".
+- CT-102 (CN-06) Bật Regex: ô tìm ghi "Tìm bằng regex"; gõ "tập (" → báo lỗi dưới đầu danh sách; gõ "tập \d+" → 5 kết quả; thêm Aa → 4.
+- CT-103 (CN-06) Bật Đúng cụm: "Hà Nội" → 1 kết quả; "ha noi" → "Không tìm thấy"; "Xóa bộ lọc" → hết thẻ, ô tìm về "Tìm dấu trang".
+- CT-104 (CN-06, CN-12) Bản Soul: trong lớp phủ, Regex "tập \d+" → 5, regex sai → báo lỗi, thêm Aa → 4.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-04, bản 2.2.0, giờ Asia/Ho_Chi_Minh.
+2026-11-05, bản 2.3.0, giờ Asia/Ho_Chi_Minh.
 - Hàm thuần + kho chia phần (tests/core.test.js): 52/52 qua.
-- Nhập/xuất HTML, hàm thuần (tests/html.test.js): 32/32 qua.
+- Cách so chữ, hàm thuần (tests/search.test.js): 17/17 qua — CT-94…CT-99. 50.000 dấu trang: hoa thường 15 ms, đúng cụm 43 ms, regex 23 ms, mặc định 11 ms.
+- Cách so chữ trên bản tiện ích (tests/search_ui_test.py): 8/8 qua — CT-100…CT-103, CT-C1, CT-C3.
+- Nhập/xuất HTML: hàm thuần 32/32, giao diện 21/21 qua.
 - Bản tiện ích (tests/ui_test.py): 66/66 qua.
-- Nhập/xuất HTML trên bản tiện ích (tests/html_ui_test.py): 21/21 qua.
-- Bản Soul không có Kho (tests/soul_test.py): 21/21 qua — CT-53 sửa bước kéo thả: cuộn dòng vào giữa trước khi kéo vì có dòng nhắc cài Kho ở đầu danh sách (hành vi kiểm không đổi).
-- Script Kho (tests/kho_test.py): 11/11 qua — CT-85…CT-93, vị trí nút trong Kho, không lỗi console. 50.000 dấu trang trong Kho: kiểm tra trang 3 lần đều ≤ 30 ms.
-- Tốc độ (tests/perf_test.py): 12/12 qua; Soul kiểm tra trang 13,2 ms.
-- Chưa thử được ở máy: Soul thật — Soul chạy hai userscript chung vùng hay tách vùng (quyết định trang có thấy dữ liệu không); nút cập nhật của Soul với script Kho (giữ @version 1.0.0 nên không có bản mới); các mục chưa thử của 2.0.0 / 2.1.0.
+- Bản Soul (tests/soul_test.py): 22/22 qua — thêm CT-104.
+- Script Kho (tests/kho_test.py): 11/11 qua.
+- Tốc độ (tests/perf_test.py): 12/12 qua — gõ tìm [143, 125, 132] ms, lọc 47 ms; 100.000 dấu trang tìm [151, 139, 217] ms.
+- Chưa thử được ở máy: Soul thật (bàn phím điện thoại gõ ký tự regex như \ ^ |); các mục chưa thử của bản trước.
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
@@ -343,6 +363,7 @@ Bản 2.2.0 (CN-19 script Kho) — thêm 2026-11-04. Cách chạy: hai kho GM gi
 - 2.1.1 (2026-11-04): đưa mã lên kho GitHub SoulBookmarks; userscript có @homepageURL/@updateURL/@downloadURL trỏ tới tệp ở gốc kho; build.py ghi tệp ra gốc kho. Chức năng không đổi.
 - 2.1.2 (2026-11-04): sửa lỗi người dùng báo: nút ở đáy bảng lưu nhanh (Xóa, Cập nhật) bị thanh công cụ dưới của Soul che. Bản Soul chừa 64px ở đáy cho mọi phần bám đáy màn hình (soul/soul.css). Bản máy tính không đổi.
 - 2.2.0 (2026-11-04): script "Sổ Dấu Trang – Kho" 1.0.0 giữ dữ liệu bản Soul qua các lần cập nhật script chính (CN-19); tự chuyển dữ liệu sang Kho, gộp khi hai bên đều có; báo lỗi không ghi khi Kho bị tắt; trình quản lý có dòng nhắc cài Kho; Sao lưu ghi nơi cất. manager.js nhận env.notice và env.storageInfo (bản tiện ích không dùng). DATA_VERSION giữ 2.
+- 2.3.0 (2026-11-05): tìm kiếm thêm ba cách so chữ: phân biệt hoa thường, đúng cụm, regex (CN-06); thẻ điều kiện, báo regex sai, dừng regex quá lâu. Áp dụng cả bản máy tính và bản Soul. DATA_VERSION giữ 2.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.

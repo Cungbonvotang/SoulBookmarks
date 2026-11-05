@@ -147,6 +147,7 @@
       n += q.tags.length;
       if (SDT.hasDate(q)) n++;
       if (q.scope === 'all' && S.view !== 'all' && S.view !== 'root') n++;
+      n += SDT.textModeCount(q);
       return n;
     }
 
@@ -174,6 +175,9 @@
       if (q.urlText.trim()) chips.push(chip('url', 'Địa chỉ: ' + q.urlText.trim(), () => { q.urlText = ''; }));
       if (q.title.trim()) chips.push(chip('title', 'Tên: ' + q.title.trim(), () => { q.title = ''; }));
       if (q.scope === 'all' && S.view !== 'all' && S.view !== 'root') chips.push(chip('scope', 'Trong toàn bộ thư mục', () => { q.scope = 'folder'; }));
+      if (q.regex) chips.push(chip('regex', '.* Regex', () => { q.regex = false; }));
+      else if (q.phrase) chips.push(chip('phrase', '“…” Đúng cụm', () => { q.phrase = false; }));
+      if (q.caseSensitive) chips.push(chip('case', 'Aa Phân biệt hoa thường', () => { q.caseSensitive = false; }));
       return chips;
     }
 
@@ -212,7 +216,10 @@
         head.append(h('div', { class: 'cchips', 'data-test': 'filter-summary' }, chips,
           h('button', { type: 'button', class: 'link small', 'data-test': 'btn-clear-filter-inline', onclick: clearFilters }, 'Bỏ lọc')));
       }
+      if (S.searchError) head.append(h('p', { class: 'lh-notice err', role: 'alert', 'data-test': 'search-error' }, S.searchError));
       if (S.notice) head.append(h('p', { class: 'lh-notice', 'data-test': 'notice' }, S.notice));
+      const se = $('search');
+      if (se) se.placeholder = S.q.regex ? 'Tìm bằng regex' : S.q.phrase ? 'Tìm đúng cụm' : 'Tìm dấu trang';
     }
 
     /* ---------- dòng trong danh sách ---------- */
@@ -289,11 +296,13 @@
     /* ---------- danh sách (vẽ dần) ---------- */
     function computeEntries() {
       if (folderView()) {
+        S.searchError = '';
         const lf = SDT.listFolder(S.data, curFolderId(), curSort());
         return { entries: lf.folders.map(f => ({ kind: 'f', item: f })).concat(lf.bookmarks.map(b => ({ kind: 'b', item: b }))), f: lf.folders.length, b: lf.bookmarks.length };
       }
       const q = Object.assign({}, S.q, { folder: S.view === 'all' ? 'all' : S.view === 'root' ? 'root' : S.view, sort: curSort() });
       const res = SDT.search(S.data, q);
+      S.searchError = res.error || '';
       return { entries: res.items.map(b => ({ kind: 'b', item: b })), f: 0, b: res.items.length };
     }
     function renderList(keepScroll) {
@@ -778,9 +787,20 @@
       const syncMode = () => { const m = segValue(body, 'f-datemode'); exactBox.hidden = m !== 'exact'; monthBox.hidden = m !== 'month'; rangeBox.hidden = m !== 'range'; };
       mode.addEventListener('change', syncMode);
       const inFolder = S.view !== 'all' && S.view !== 'root';
+      const opt = (test, label, hint, checked) => {
+        const cb = h('input', { type: 'checkbox', 'data-test': test, checked });
+        return { cb, el: h('label', { class: 'optrow' }, cb, h('span', {}, h('b', {}, label), h('small', {}, hint))) };
+      };
+      const oCase = opt('filter-case', 'Aa  Phân biệt hoa thường', '“Conan” không khớp “conan”.', !!q.caseSensitive);
+      const oPhrase = opt('filter-phrase', '“…”  Đúng cụm', 'Khớp nguyên cụm đã gõ, liền nhau, kể cả dấu.', !!q.phrase);
+      const oRegex = opt('filter-regex', '.*  Regex', 'Biểu thức chính quy, ví dụ: tập \\d+  ·  ^https://vidu\\.vn/  ·  conan|kid', !!q.regex);
+      const syncOpts = () => { oPhrase.cb.disabled = oRegex.cb.checked; oPhrase.el.classList.toggle('off', oRegex.cb.checked); };
+      oRegex.cb.addEventListener('change', syncOpts);
+      syncOpts();
       const body = h('div', { class: 'filter' },
         h('section', {}, h('label', { class: 'field' }, h('span', { class: 'lab' }, 'Tên có chữ'), title)),
         h('section', {}, h('label', { class: 'field' }, h('span', { class: 'lab' }, 'Địa chỉ có chữ'), url)),
+        h('section', { 'data-test': 'filter-textmode' }, h('div', { class: 'lab' }, 'Cách so chữ ', h('small', {}, '(cho ô tìm, Tên, Địa chỉ)')), oCase.el, oPhrase.el, oRegex.el),
         h('section', {}, h('div', { class: 'lab' }, 'Nhãn ', h('small', {}, '(có đủ các nhãn chọn)')), tagSearch, tagBox),
         h('section', {}, h('div', { class: 'h3row' }, h('span', { class: 'lab' }, 'Thời gian'),
           h('button', { type: 'button', class: 'link small', 'data-test': 'filter-clear-dates', onclick: () => { date.value = ''; month.value = ''; from.value = ''; to.value = ''; } }, 'Bỏ ngày')),
@@ -799,6 +819,7 @@
             tags: tags.filter(t => chosen.has(t.tag.toLowerCase())).map(t => t.tag),
             dateField: dateField.value, dateMode: m, date: date.value, month: month.value, from: r.from, to: r.to,
             scope: inFolder ? (segValue(body, 'f-scope') || 'folder') : 'folder',
+            caseSensitive: oCase.cb.checked, regex: oRegex.cb.checked, phrase: oPhrase.cb.checked && !oRegex.cb.checked,
           });
           S.notice = (m === 'range' && r.swapped) ? 'Ngày “Từ” sau ngày “Đến” nên đã đổi chỗ hai ngày.' : '';
           renderAll(false);

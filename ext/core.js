@@ -495,8 +495,10 @@
   function monthEnd(s) { const [y, m] = s.split('-').map(Number); return new Date(y, m, 1).getTime() - 1; }
 
   function defaultQuery() {
-    return { text: '', title: '', urlText: '', tags: [], dateField: 'createdAt', dateMode: 'exact', date: '', month: '', from: '', to: '', folder: 'all', scope: 'folder', sort: 'created' };
+    return { text: '', title: '', urlText: '', tags: [], dateField: 'createdAt', dateMode: 'exact', date: '', month: '', from: '', to: '', folder: 'all', scope: 'folder', sort: 'created',
+      caseSensitive: false, phrase: false, regex: false };
   }
+  function textModeCount(q) { return (q.caseSensitive ? 1 : 0) + (q.regex ? 1 : (q.phrase ? 1 : 0)); }
   function normalizeRange(from, to) {
     if (isDay(from) && isDay(to) && from > to) return { from: to, to: from, swapped: true };
     return { from, to, swapped: false };
@@ -527,6 +529,46 @@
     return f;
   }
   function tokens(s) { return fold(s).split(/\s+/).filter(Boolean); }
+  // Bỏ dấu nhưng giữ hoa thường (dùng khi bật "Phân biệt hoa thường", không bật "Đúng cụm"/Regex).
+  function foldKeepCase(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D'); }
+  const foldCaseCache = new WeakMap();
+  function foldedCaseOf(b) {
+    let f = foldCaseCache.get(b);
+    if (!f) { f = { t: foldKeepCase(b.title), u: foldKeepCase(b.url), g: foldKeepCase(b.tags.join(' ')) }; f.all = f.t + '\n' + f.u + '\n' + f.g; foldCaseCache.set(b, f); }
+    return f;
+  }
+  const REGEX_MAX = 200;
+  const SEARCH_BUDGET_MS = 1500;
+  const nfc = s => String(s == null ? '' : s).normalize('NFC');
+  /* Bộ so chữ cho một ô điều kiện. field: 'all' (tên, địa chỉ, nhãn) | 't' (tên) | 'u' (địa chỉ).
+     Trả về null nếu ô trống, { error } nếu biểu thức sai, hoặc { test(b) }. */
+  function textMatcher(input, field, q) {
+    const raw = String(input == null ? '' : input);
+    if (!raw.trim()) return null;
+    const pick = (b, i) => (i === 't' ? b.title : i === 'u' ? b.url : b.tags.join(' '));
+    const parts = field === 'all' ? ['t', 'u', 'g'] : [field];
+    if (q.regex) {
+      const src = raw.trim();
+      if (src.length > REGEX_MAX) return { error: 'Biểu thức dài quá ' + REGEX_MAX + ' ký tự.' };
+      let re;
+      try { re = new RegExp(nfc(src), q.caseSensitive ? 'u' : 'iu'); } catch (e) { return { error: 'Biểu thức chưa đúng: ' + e.message.replace(/^Invalid regular expression: /, '') }; }
+      return { test: b => parts.some(i => { re.lastIndex = 0; return re.test(nfc(pick(b, i))); }) };
+    }
+    if (q.phrase) {
+      const needle = squash(nfc(raw));
+      if (q.caseSensitive) return { test: b => parts.some(i => nfc(pick(b, i)).includes(needle)) };
+      const n = needle.toLowerCase();
+      return { test: b => parts.some(i => nfc(pick(b, i)).toLowerCase().includes(n)) };
+    }
+    if (q.caseSensitive) {
+      const toks = foldKeepCase(raw).split(/\s+/).filter(Boolean);
+      const key = field === 'all' ? 'all' : field;
+      return { test: b => { const f = foldedCaseOf(b)[key]; return toks.every(x => f.includes(x)); } };
+    }
+    const toks = tokens(raw);
+    const key = field === 'all' ? 'all' : field;
+    return { test: b => { const f = foldedOf(b)[key]; return toks.every(x => f.includes(x)); } };
+  }
 
   function search(data, query) {
     const q = assign(defaultQuery(), query || {});
@@ -539,12 +581,19 @@
     if (q.scope !== 'all' && q.folder !== 'all' && q.folder !== 'root' && q.folder) {
       folderSet = new Set([q.folder].concat(descendantIds(data, q.folder)));
     }
-    const tAll = tokens(q.text), tTitle = tokens(q.title), tUrl = tokens(q.urlText);
+    const matchers = [textMatcher(q.text, 'all', q), textMatcher(q.title, 't', q), textMatcher(q.urlText, 'u', q)].filter(Boolean);
+    const bad = matchers.find(m => m.error);
+    if (bad) return { items: [], swapped: r.swapped, from: r.from, to: r.to, error: bad.error };
     const tagKeys = (q.tags || []).map(lower);
     const dateField = q.dateField === 'updatedAt' ? 'updatedAt' : 'createdAt';
-    const needText = tAll.length || tTitle.length || tUrl.length;
+    const needText = matchers.length > 0;
+    const timed = !!q.regex;
+    const t0 = timed ? Date.now() : 0;
+    let timedOut = false;
     const items = [];
-    for (const b of data.bookmarks) {
+    for (let i = 0; i < data.bookmarks.length; i++) {
+      const b = data.bookmarks[i];
+      if (timed && (i & 15) === 15 && Date.now() - t0 > SEARCH_BUDGET_MS) { timedOut = true; break; }
       if (folderSet && !folderSet.has(b.folderId)) continue;
       const t = b[dateField];
       if (t < lo || t > hi) continue;
@@ -553,14 +602,10 @@
         for (const k of tagKeys) { if (!b.tags.some(x => lower(x) === k)) { okTags = false; break; } }
         if (!okTags) continue;
       }
-      if (needText) {
-        const f = foldedOf(b);
-        if (tAll.length && !tAll.every(x => f.all.includes(x))) continue;
-        if (tTitle.length && !tTitle.every(x => f.t.includes(x))) continue;
-        if (tUrl.length && !tUrl.every(x => f.u.includes(x))) continue;
-      }
+      if (needText && !matchers.every(m => m.test(b))) continue;
       items.push(b);
     }
+    if (timedOut) return { items: [], swapped: r.swapped, from: r.from, to: r.to, error: 'Tìm quá lâu nên đã dừng. Hãy viết biểu thức đơn giản hơn.' };
     return { items: sortBookmarks(items, q.sort), swapped: r.swapped, from: r.from, to: r.to };
   }
   // Nội dung một thư mục (null = gốc): thư mục con rồi dấu trang trực tiếp.
@@ -922,7 +967,7 @@
     byOrder, getFolder, childMap, childrenOf, descendantIds, folderPath, folderChain, folderLabel, folderTreeList,
     validateFolderName, uniqueName, addFolder, renameFolder, moveFolder, folderContent, deleteFolder,
     placeItems, copyItems, findByUrl, addBookmark, updateBookmark, deleteBookmarks, restoreBookmarks, bulkAddTags, bulkMove, deleteItems,
-    isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, normalizeRange, hasDate, hasFilters, isSearching,
+    isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, normalizeRange, hasDate, hasFilters, isSearching,
     sortBookmarks, foldedOf, search, listFolder, folderStats,
     validateData, fixRefs, migrate, mergeData, diffData, exportFileName, exportPayload, localDay,
     exportHtmlFileName, isBookmarksHtml, decodeEntities, parseBookmarksHtml, mergeImported, exportHtml,
