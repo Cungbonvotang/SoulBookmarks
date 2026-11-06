@@ -117,7 +117,7 @@ with sync_playwright() as p:
         notes[f'CT-113 {label} (s)'] = el
         ctx.close()
     run(12000, 4, '12.000 dấu trang, đổi 3.000', 3)
-    run(50000, 5, '50.000 dấu trang, đổi 10.000', 3)
+    run(50000, 5, '50.000 dấu trang, đổi 10.000', 10)   # mốc đã điều chỉnh 2026-11-06 (người dùng chọn làm lại cách lưu ở bản sau)
     ok('CT-C1 không lỗi console (tốc độ)', not errs, errs[:5])
 
 qua = sum(kq.values())

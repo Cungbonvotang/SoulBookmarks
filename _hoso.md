@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.3.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.4.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -360,19 +360,19 @@ Bản 2.4.0 (CN-20 đổi chữ hàng loạt) — thêm 2026-11-06.
 - CT-110 (CN-20) Giao diện: tìm "www.sangtacviet.com" → "2 kết quả" → ⋯ → "Đổi chữ các kết quả (2)" → Tìm điền sẵn → xem trước "Sẽ đổi 2 dấu trang. 1 mục sẽ trùng…", 2 dòng mẫu, nút "Đổi 2 dấu trang" → đổi đúng, mục khác giữ nguyên → Hoàn tác trả lại.
 - CT-111 (CN-20) Chọn 2 mục → "Đổi chữ" → hộp ghi "Áp dụng cho 2 dấu trang" → Tên + Regex → chỉ 2 mục đổi.
 - CT-112 (CN-20) Regex sai → xem trước báo lỗi, nút mờ; bỏ "https://" → "Không có dấu trang nào đổi. Bỏ qua 4 mục…", nút mờ; hộp không cuộn ngang.
-- CT-113 (CN-20, CN-17) Tốc độ (từ lúc bấm Đổi tới thông báo "Đã đổi", có "Đang đổi…"): 12.000 dấu trang đổi 3.000 ≤ 3 s; 50.000 dấu trang đổi 10.000 ≤ 3 s (mục tiêu đã duyệt).
+- CT-113 (CN-20, CN-17) Tốc độ (từ lúc bấm Đổi tới thông báo "Đã đổi", có "Đang đổi…"): 12.000 dấu trang đổi 3.000 ≤ 3 s; 50.000 dấu trang đổi 10.000 ≤ 10 s (mốc đã duyệt ban đầu 3 s; người dùng chọn giữ 2.4.0 với mốc này và làm lại cách lưu ở bản sau, 2026-11-06).
 - CT-114 (CN-20, CN-12) Bản Soul: ⋯ → Đổi chữ các kết quả trong lớp phủ → đổi đúng 4 mục.
 - CT-C3 khung 360: thanh chọn nhiều đủ 6 nút, không cuộn ngang, nút ≥ 44px.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-06, bản nháp 2.4.0 (nhánh ban-2.4.0, chưa phát hành lên main), giờ Asia/Ho_Chi_Minh.
+2026-11-06, bản 2.4.0, giờ Asia/Ho_Chi_Minh.
 - Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17 (CT-105…CT-109).
-- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 8/9.
-- TRƯỢT CT-113 phần 50.000 dấu trang đổi 10.000: 6,88 s (mục tiêu 3 s). Phần 12.000 dấu trang đổi 3.000: 1,84 s — qua.
-  Nguyên nhân (đo): các mục đổi rải đều 64 phần dữ liệu nên phải ghi lại gần hết; riêng việc chrome.storage ghi các phần đã đổi (kèm báo thay đổi cho các trang khác) mất ~3,9 s ở 50.000 dấu trang. Đọc ~1,1 s, tính toán ~0,3 s. Không phải lỗi của phần đổi chữ; các thao tác hàng loạt khác (xóa, thêm nhãn nhiều mục rải rác) cũng chịu chi phí này.
+- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9 (CT-110…CT-113, CT-C1, CT-C3).
+- CT-113: 12.000 dấu trang đổi 3.000: 1,09 s (lần trước 1,84 s); 50.000 đổi 10.000: 5,09 s (lần trước 6,88 s), mốc 10 s.
+  Chi phí chính (đo): mục đổi rải đều 64 phần dữ liệu nên chrome.storage phải ghi lại gần hết (kèm báo thay đổi cho các trang khác) — ~3,9 s ở 50.000 dấu trang. Sẽ giải quyết ở bản làm lại cách lưu.
 - Bản Soul: 23/23 (thêm CT-114). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
-- Chưa thử được ở máy: Soul thật với ~11.000 dấu trang trong Kho.
+- Chưa thử được ở máy: Soul thật với ~11.000 dấu trang trong Kho (thời gian đổi chữ hàng loạt).
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
@@ -382,6 +382,7 @@ Bản 2.4.0 (CN-20 đổi chữ hàng loạt) — thêm 2026-11-06.
 - 2.1.2 (2026-11-04): sửa lỗi người dùng báo: nút ở đáy bảng lưu nhanh (Xóa, Cập nhật) bị thanh công cụ dưới của Soul che. Bản Soul chừa 64px ở đáy cho mọi phần bám đáy màn hình (soul/soul.css). Bản máy tính không đổi.
 - 2.2.0 (2026-11-04): script "Sổ Dấu Trang – Kho" 1.0.0 giữ dữ liệu bản Soul qua các lần cập nhật script chính (CN-19); tự chuyển dữ liệu sang Kho, gộp khi hai bên đều có; báo lỗi không ghi khi Kho bị tắt; trình quản lý có dòng nhắc cài Kho; Sao lưu ghi nơi cất. manager.js nhận env.notice và env.storageInfo (bản tiện ích không dùng). DATA_VERSION giữ 2.
 - 2.3.0 (2026-11-05): tìm kiếm thêm ba cách so chữ: phân biệt hoa thường, đúng cụm, regex (CN-06); thẻ điều kiện, báo regex sai, dừng regex quá lâu. Áp dụng cả bản máy tính và bản Soul. DATA_VERSION giữ 2.
+- 2.4.0 (2026-11-06): đổi chữ hàng loạt ở tên / địa chỉ (CN-20): ⋯ → Đổi chữ các kết quả, nút Đổi chữ trên thanh chọn nhiều, xem trước, Hoàn tác, báo mục bỏ qua / trùng địa chỉ. Thanh chọn nhiều 6 nút chia đều. DATA_VERSION giữ 2.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.
@@ -403,3 +404,4 @@ Bản 2.4.0 (CN-20 đổi chữ hàng loạt) — thêm 2026-11-06.
 - [sua-webapp] 2.2.0: nút cập nhật script trong Soul xóa kho GM của script đó (người dùng báo, 2026-11-04) → lý do có script Kho. Không bấm cập nhật script Kho; Kho giữ @version 1.0.0 mãi để Soul không có bản mới mà đề nghị.
 - [sua-webapp] 2.2.0: kho GM riêng của script chính vẫn giữ bản dữ liệu tại lúc chuyển sang Kho (không xóa, phòng trang giả mạo Kho); bản này cũ dần và mất ở lần cập nhật kế, không được dùng lại vì có dấu "sdt_kho_moved".
 - [sua-webapp] 2.2.0: một trang web cố ý giả mạo script Kho (khi chưa cài Kho, qua đường sự kiện) có thể nhận được bản sao dấu trang; dữ liệu thật không bị xóa. Rủi ro thấp, đã ghi trong màn Sao lưu khi dùng đường trang có thể thấy.
+- [sua-webapp] 2.4.0: thao tác hàng loạt trên nhiều mục rải rác (đổi chữ, xóa, thêm nhãn) ở bản tiện ích tốn ~5 s với 50.000 dấu trang vì chrome.storage ghi lại gần hết các phần dữ liệu. Người dùng chọn làm lại cách lưu (bản sau).
