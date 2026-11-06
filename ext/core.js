@@ -662,6 +662,56 @@
     }
     return { ok: true, data: assign(data, { bookmarks }), changed: changedIds.size, skipped, dups, samples };
   }
+  /* ---------- dấu trang trùng (2.5.0) ---------- */
+  // mode 'url': cùng khóa địa chỉ (CN-05); 'title': cùng tên, không phân biệt hoa thường và khoảng trắng thừa, vẫn phân biệt dấu.
+  function dupKey(b, mode) { return mode === 'title' ? lower(squash(String(b.title).normalize('NFC'))) : b.urlKey; }
+  function findDuplicates(data, mode) {
+    const m = new Map();
+    for (const b of data.bookmarks) {
+      const k = dupKey(b, mode);
+      if (!k) continue;
+      const a = m.get(k);
+      if (a) a.push(b); else m.set(k, [b]);
+    }
+    const groups = [];
+    for (const [key, items] of m) {
+      if (items.length < 2) continue;
+      items.sort((x, y) => (y.updatedAt - x.updatedAt) || (y.createdAt - x.createdAt) || (x.id < y.id ? -1 : 1));
+      groups.push({ key, items, newest: items[0].updatedAt });
+    }
+    groups.sort((a, b) => (b.items.length - a.items.length) || (b.newest - a.newest) || (a.key < b.key ? -1 : 1));
+    return groups;
+  }
+  // plan: [{ keep: [id…], remove: [id…] }]. Nhóm không còn mục giữ thì bỏ qua (không xóa gì).
+  function resolveDuplicates(data, plan, mergeTags, now) {
+    const byId = new Map(data.bookmarks.map(b => [b.id, b]));
+    const del = new Set(), extra = new Map();
+    let skippedGroups = 0;
+    for (const g of plan) {
+      const keep = (g.keep || []).filter(id => byId.has(id));
+      const rem = (g.remove || []).filter(id => byId.has(id) && !keep.includes(id));
+      if (!keep.length) { skippedGroups++; continue; }
+      if (!rem.length) continue;
+      for (const id of rem) del.add(id);
+      if (mergeTags) {
+        const tags = [];
+        for (const id of rem) tags.push(...byId.get(id).tags);
+        if (tags.length) for (const id of keep) extra.set(id, (extra.get(id) || []).concat(tags));
+      }
+    }
+    let tagged = 0;
+    const bookmarks = [];
+    for (const b of data.bookmarks) {
+      if (del.has(b.id)) continue;
+      const add = extra.get(b.id);
+      if (add) {
+        const tags = normalizeTags(b.tags.concat(add));
+        if (tags.length !== b.tags.length) { bookmarks.push(assign(b, { tags, updatedAt: now })); tagged++; continue; }
+      }
+      bookmarks.push(b);
+    }
+    return { data: assign(data, { bookmarks }), removed: del.size, tagged, skippedGroups };
+  }
   // Nội dung một thư mục (null = gốc): thư mục con rồi dấu trang trực tiếp.
   function listFolder(data, folderId, sort) {
     const fid = folderId || null;
@@ -1021,7 +1071,7 @@
     byOrder, getFolder, childMap, childrenOf, descendantIds, folderPath, folderChain, folderLabel, folderTreeList,
     validateFolderName, uniqueName, addFolder, renameFolder, moveFolder, folderContent, deleteFolder,
     placeItems, copyItems, findByUrl, addBookmark, updateBookmark, deleteBookmarks, restoreBookmarks, bulkAddTags, bulkMove, deleteItems,
-    isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, bulkReplace, normalizeRange, hasDate, hasFilters, isSearching,
+    isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, bulkReplace, findDuplicates, resolveDuplicates, normalizeRange, hasDate, hasFilters, isSearching,
     sortBookmarks, foldedOf, search, listFolder, folderStats,
     validateData, fixRefs, migrate, mergeData, diffData, exportFileName, exportPayload, localDay,
     exportHtmlFileName, isBookmarksHtml, decodeEntities, parseBookmarksHtml, mergeImported, exportHtml,

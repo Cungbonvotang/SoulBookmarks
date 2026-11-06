@@ -578,6 +578,95 @@
       const label = items.length === 1 && items[0].kind === 'b' ? 'Đã xóa “' + ((bookmarkById(items[0].id) || {}).title || '') + '”.' : 'Đã xóa ' + items.length + ' mục.';
       await commit(r.data, { keepScroll: true, undo: label });
     }
+    /* ---------- dấu trang trùng (2.5.0) ---------- */
+    function openDuplicates() {
+      const PAGE_G = 30;
+      const st = { mode: 'url', keep: { url: new Map(), title: new Map() }, skip: { url: new Set(), title: new Set() }, shown: PAGE_G, groups: [] };
+      const modeSeg = seg('dup-mode', [['url', 'Trùng địa chỉ'], ['title', 'Trùng tên']], 'url', 'dup-mode');
+      const merge = h('input', { type: 'checkbox', 'data-test': 'dup-merge-tags', checked: true });
+      const summary = h('p', { class: 'dup-sum', 'data-test': 'dup-summary', role: 'status' });
+      const allBtn = h('button', { type: 'button', class: 'btn danger', 'data-test': 'dup-apply-all' }, 'Áp dụng tất cả');
+      const list = h('div', { class: 'dup-list' });
+      const body = h('div', { class: 'dups' },
+        modeSeg,
+        h('label', { class: 'optrow' }, merge, h('span', {}, h('b', {}, 'Gộp nhãn vào mục giữ lại'), h('small', {}, 'Nhãn của mục bị xóa được thêm vào mục giữ lại.'))),
+        h('div', { class: 'dup-bar' }, summary, allBtn),
+        list);
+      const keepMap = () => st.keep[st.mode];
+      const isKept = (g, b) => { const m = keepMap(); return m.has(b.id) ? m.get(b.id) : b === g.items[0]; };
+      const visible = () => st.groups.filter(g => !st.skip[st.mode].has(g.key));
+      const planOf = gs => gs.map(g => ({ keep: g.items.filter(b => isKept(g, b)).map(b => b.id), remove: g.items.filter(b => !isKept(g, b)).map(b => b.id) }));
+      const extraCount = gs => planOf(gs).reduce((n, p) => n + p.remove.length, 0);
+      function recompute() { st.groups = SDT.findDuplicates(S.data, st.mode); }
+      function renderSummary() {
+        const vg = visible();
+        const extra = vg.reduce((n, g) => n + g.items.length - 1, 0);
+        const rm = extraCount(vg);
+        summary.textContent = vg.length ? 'Có ' + vg.length + ' nhóm trùng, ' + extra + ' dấu trang thừa.' : 'Không có dấu trang ' + (st.mode === 'url' ? 'trùng địa chỉ.' : 'trùng tên.');
+        allBtn.textContent = 'Áp dụng tất cả (xóa ' + rm + ')';
+        allBtn.disabled = !rm || S.readOnly;
+      }
+      function field(cls, test, text, differ) { return h('div', { class: 'df ' + cls + (differ ? ' diff' : ''), 'data-test': test }, text); }
+      function renderGroup(g) {
+        const differs = k => new Set(g.items.map(k)).size > 1;
+        const dTitle = differs(b => b.title), dUrl = differs(b => b.url), dFolder = differs(b => b.folderId || ''),
+          dTags = differs(b => b.tags.map(SDT.lower).sort().join(',')), dC = differs(b => b.createdAt), dU = differs(b => b.updatedAt);
+        const rmN = g.items.filter(b => !isKept(g, b)).length;
+        const el = h('section', { class: 'dgroup', 'data-test': 'dup-group', 'data-key': g.key },
+          h('div', { class: 'dg-head' }, h('b', {}, g.items.length + ' mục'), h('span', { class: 'dg-key' }, g.key)),
+          h('div', { class: 'dg-items' }, ...g.items.map(b => {
+            const kept = isKept(g, b);
+            const cb = h('input', { type: 'checkbox', 'data-test': 'dup-keep', checked: kept });
+            cb.addEventListener('change', () => {
+              const m = keepMap();
+              m.set(b.id, cb.checked);
+              if (!g.items.some(x => isKept(g, x))) { m.set(b.id, true); toast('Mỗi nhóm phải giữ lại ít nhất một mục.', { error: true }); }
+              el.replaceWith(renderGroup(g)); renderSummary();
+            });
+            return h('article', { class: 'ditem' + (kept ? ' kept' : ''), 'data-test': 'dup-item', 'data-id': b.id },
+              h('label', { class: 'dkeep' }, cb, h('span', {}, kept ? 'Giữ' : 'Xóa')),
+              h('div', { class: 'dbody' },
+                h('a', { class: 'df dt' + (dTitle ? ' diff' : ''), 'data-test': 'dup-open', href: b.url, target: '_blank', rel: 'noopener noreferrer',
+                  onclick: e => { if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
+                field('du', 'dup-url', b.url, dUrl),
+                field('dp', 'dup-folder', '📁 ' + SDT.folderLabel(S.data, b.folderId), dFolder),
+                h('div', { class: 'df dtags' + (dTags ? ' diff' : '') }, ...(b.tags.length ? b.tags.map(t => h('span', { class: 'tag ' + tagClass(S.data, t) }, t)) : [h('span', { class: 'muted' }, 'Không có nhãn')])),
+                field('dd', 'dup-dates', 'Tạo ' + SDT.formatDateTime(b.createdAt) + ' · Sửa ' + SDT.formatDateTime(b.updatedAt), dC || dU)));
+          })),
+          h('div', { class: 'dg-acts' },
+            h('button', { type: 'button', class: 'btn quiet small', 'data-test': 'dup-skip', onclick: () => { st.skip[st.mode].add(g.key); render(); } }, 'Bỏ qua nhóm này'),
+            h('button', { type: 'button', class: 'btn danger small', 'data-test': 'dup-apply-group', disabled: !rmN || S.readOnly, onclick: () => apply([g]) }, rmN ? 'Xóa ' + rmN + ' mục không giữ' : 'Không có mục để xóa')));
+        return el;
+      }
+      function render() {
+        list.textContent = '';
+        const vg = visible();
+        for (const g of vg.slice(0, st.shown)) list.append(renderGroup(g));
+        if (vg.length > st.shown) list.append(h('button', { type: 'button', class: 'btn quiet', 'data-test': 'dup-more', onclick: () => { st.shown += PAGE_G; render(); } }, 'Xem thêm ' + Math.min(PAGE_G, vg.length - st.shown) + ' nhóm'));
+        renderSummary();
+      }
+      async function apply(gs) {
+        const plan = planOf(gs);
+        const n = plan.reduce((k, p) => k + p.remove.length, 0);
+        if (!n) return;
+        const r = SDT.resolveDuplicates(S.data, plan, merge.checked, Date.now());
+        if (await commit(r.data, { keepScroll: true, undo: 'Đã xóa ' + r.removed + ' dấu trang trùng.' + (r.tagged ? ' Gộp nhãn vào ' + r.tagged + ' mục giữ lại.' : '') })) { recompute(); render(); }
+      }
+      allBtn.addEventListener('click', async () => {
+        const vg = visible(); const n = extraCount(vg);
+        if (!n) return;
+        const ok = await confirmDialog({ title: 'Xóa dấu trang trùng?', message: 'Xóa ' + n + ' dấu trang không giữ trong ' + vg.length + ' nhóm. Có thể hoàn tác ngay sau đó.', okText: 'Xóa ' + n + ' mục', danger: true, test: 'dlg-dup-all' });
+        if (ok) await apply(vg);
+      });
+      modeSeg.addEventListener('change', () => { st.mode = segValue(body, 'dup-mode') || 'url'; st.shown = PAGE_G; recompute(); render(); });
+      // Hoàn tác từ thông báo: tính lại khi dữ liệu đổi.
+      const unsub = store.onChange ? store.onChange(() => setTimeout(() => { recompute(); render(); }, 0)) : null;
+      recompute(); render();
+      openDialog({ title: 'Dấu trang trùng', test: 'dlg-dups', sheet: true, wide: true, cls: 'tall', body,
+        actions: [{ label: 'Xong', value: null, test: 'dup-close', kind: 'quiet' }],
+        onClose: () => { if (typeof unsub === 'function') unsub(); } });
+    }
+
     /* ---------- đổi chữ hàng loạt (tên / địa chỉ) ---------- */
     async function openReplace(ids) {
       if (!ids.length) return;
@@ -1083,6 +1172,7 @@
         'sep',
         searching() && S.entries.length ? { label: 'Đổi chữ các kết quả (' + S.entries.length + ')', icon: 'edit', test: 'menu-replace',
           onSelect: () => openReplace(S.entries.filter(e => e.kind === 'b').map(e => e.item.id)) } : null,
+        { label: 'Tìm dấu trang trùng', icon: 'copy', test: 'menu-dups', onSelect: openDuplicates },
         { label: 'Nhãn và màu nhãn', icon: 'tag', test: 'menu-tags', onSelect: openTags },
         { label: 'Sao lưu: xuất / nhập', icon: 'paste', test: 'menu-backup', onSelect: openBackup },
       ], null, 'Sổ Dấu Trang');

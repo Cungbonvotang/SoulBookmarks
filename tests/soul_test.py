@@ -372,6 +372,21 @@ with sync_playwright() as p:
     ok('CT-114 Soul: đổi chữ các kết quả', pv114.startswith('Sẽ đổi 4 dấu trang') and n114 == 4 and t114.startswith('Đã đổi 4 dấu trang'), [pv114, n114, t114])
     V.close()
 
+    # CT-124 tìm dấu trang trùng trong lớp phủ
+    V = newpage(ctx, f'{L}/trang-hai.html')
+    seed_sample(V)
+    V.evaluate("""async () => { const st = window.__SDT_SOUL__.store; const r = await st.loadAll(); const d = r.data;
+      const b = Object.assign({}, d.bookmarks.find(x => x.id === 'b1'), { id: 'dupx', title: 'Bản trùng', url: 'http://www.vidu.vn/conan-1100/', updatedAt: 1, tags: ['cũ'] });
+      await st.save(d, Object.assign({}, d, { bookmarks: d.bookmarks.concat([b]) })); }""")
+    open_mgr(V)
+    T(V, 'btn-more').click(); W(V, 250); T(V, 'menu-dups').click(); W(V, 400)
+    sm124 = T(V, 'dup-summary').inner_text()
+    T(V, 'dup-apply-group').first.click(); W(V, 600)
+    ids124 = [b['id'] for b in data(V)['bookmarks']]
+    b1t = next(b['tags'] for b in data(V)['bookmarks'] if b['id'] == 'b1')
+    ok('CT-124 Soul: tìm trùng, xóa mục không giữ, gộp nhãn', sm124 == 'Có 1 nhóm trùng, 1 dấu trang thừa.' and 'dupx' not in ids124 and 'b1' in ids124 and 'cũ' in b1t, [sm124, b1t])
+    V.close()
+
     # CT-C7 dữ liệu hỏng
     snap = dict(GM)
     GM['sdt_b_3'] = json.dumps('không phải danh sách')

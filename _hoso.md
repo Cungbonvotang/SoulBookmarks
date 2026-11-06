@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.4.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.5.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -140,6 +140,13 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: tệp rất lớn (~100 MB do ảnh biểu tượng) → đọc được, bỏ ảnh; khi đọc hiện "Đang đọc tệp…"; máy thử ≤ 5 giây.
   - Biên: tệp HTML không phải tệp dấu trang, hoặc không có dấu trang/thư mục nào → báo lỗi, dữ liệu giữ nguyên.
   - Không đổi: "Chép / Dán dữ liệu" của bản Soul vẫn là JSON.
+
+- CN-21 Tìm dấu trang trùng để so sánh, chọn giữ lại. [mới ở 2.5.0]
+  - Mở: nút ⋯ → "Tìm dấu trang trùng". Hai thẻ: "Trùng địa chỉ" (cùng khóa địa chỉ theo CN-05; khác "?…" không tính) và "Trùng tên" (không phân biệt hoa thường, khoảng trắng thừa; phân biệt dấu).
+  - Mỗi nhóm một thẻ: từng mục có tên (bấm để mở trang), địa chỉ đầy đủ, thư mục, nhãn, ngày tạo/sửa; chỗ khác nhau giữa các mục được tô đậm. Ô "Giữ" mỗi mục, mặc định giữ mục cập nhật gần nhất; giữ được nhiều mục; mỗi nhóm phải giữ ít nhất một mục (bỏ mục giữ cuối → báo, ô tự chọn lại).
+  - Chấp nhận: nút "Xóa N mục không giữ" trên nhóm, "Bỏ qua nhóm này" (ẩn tới khi đóng màn), "Áp dụng tất cả (xóa M)" có hỏi xác nhận; xong có Hoàn tác; màn tự tính lại sau khi xóa / hoàn tác (lựa chọn Giữ vẫn được nhớ trong lúc mở màn).
+  - Tùy chọn "Gộp nhãn vào mục giữ lại" (mặc định bật): nhãn của mục bị xóa thêm vào mọi mục giữ trong nhóm (không lặp, không phân biệt hoa thường); mục được thêm nhãn có ngày cập nhật = lúc làm.
+  - Biên: mục trùng ở các thư mục khác nhau vẫn tính trùng, ghi rõ thư mục. Nhiều nhóm → hiện 30 nhóm, nút "Xem thêm". 50.000 dấu trang: mở màn ≤ 1 s. Khung 360: ô Giữ và nút ≥ 44px, không cuộn ngang.
 
 - CN-20 Đổi chữ hàng loạt ở tên / địa chỉ. [mới ở 2.4.0]
   - Mở: nút ⋯ → "Đổi chữ các kết quả (N)" khi đang tìm (áp cho mọi kết quả), hoặc nút "Đổi chữ" trên thanh chọn nhiều (áp cho dấu trang đã chọn; thư mục bỏ qua).
@@ -363,16 +370,25 @@ Bản 2.4.0 (CN-20 đổi chữ hàng loạt) — thêm 2026-11-06.
 - CT-113 (CN-20, CN-17) Tốc độ (từ lúc bấm Đổi tới thông báo "Đã đổi", có "Đang đổi…"): 12.000 dấu trang đổi 3.000 ≤ 3 s; 50.000 dấu trang đổi 10.000 ≤ 10 s (mốc đã duyệt ban đầu 3 s; người dùng chọn giữ 2.4.0 với mốc này và làm lại cách lưu ở bản sau, 2026-11-06).
 - CT-114 (CN-20, CN-12) Bản Soul: ⋯ → Đổi chữ các kết quả trong lớp phủ → đổi đúng 4 mục.
 - CT-C3 khung 360: thanh chọn nhiều đủ 6 nút, không cuộn ngang, nút ≥ 44px.
+Bản 2.5.0 (CN-21 dấu trang trùng) — thêm 2026-11-06.
+- CT-115 (CN-21) Hàm thuần: trùng địa chỉ gom http/https, www, "/" cuối, "#…", hoa thường tên miền; "?id=1" và "?id=2" không trùng.
+- CT-116 (CN-21) Trùng tên: "Conan tập 1" ~ "CONAN TẬP 1", "Hà Nội" ~ "hà  nội", không gom "Ha Noi"; mục cập nhật gần nhất đứng đầu nhóm.
+- CT-117 (CN-21) Xử lý: xóa mục không giữ, gộp nhãn (ngày cập nhật đổi); tắt gộp nhãn thì giữ nguyên; giữ nhiều mục; nhóm không còn mục giữ → không xóa; dữ liệu sau xử lý hợp lệ.
+- CT-118 (CN-21, CN-17) 50.000 dấu trang, 5.000 nhóm: tìm trùng địa chỉ / tên ≤ 300 ms, xử lý ≤ 300 ms (hàm thuần).
+- CT-119 (CN-21) Giao diện: "Có 1 nhóm trùng, 2 dấu trang thừa."; nhóm 3 mục xếp mới nhất trước; giữ mặc định mục mới nhất; thư mục và địa chỉ khác nhau được tô đậm.
+- CT-120 (CN-21) Bỏ chọn mục giữ cuối cùng → báo "…ít nhất một mục", ô tự chọn lại.
+- CT-121 (CN-21) Giữ mục ở thư mục khác → "Xóa 2 mục không giữ" → xóa đúng, gộp nhãn, thông báo kèm Hoàn tác → Hoàn tác trả lại, nhóm hiện lại.
+- CT-122 (CN-21) Thẻ "Trùng tên" có nhóm "Du lịch Hà Nội"; "Bỏ qua nhóm này" → hết nhóm; "Áp dụng tất cả" → hỏi xác nhận đúng số → xóa.
+- CT-123 (CN-21, CN-17) 50.000 dấu trang, 5.000 nhóm: mở màn ≤ 1 s, hiện 30 nhóm, "Xem thêm" → 60.
+- CT-124 (CN-21, CN-12) Bản Soul: trong lớp phủ tìm trùng, xóa mục không giữ, gộp nhãn.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-06, bản 2.4.0, giờ Asia/Ho_Chi_Minh.
-- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17 (CT-105…CT-109).
-- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9 (CT-110…CT-113, CT-C1, CT-C3).
-- CT-113: 12.000 dấu trang đổi 3.000: 1,09 s (lần trước 1,84 s); 50.000 đổi 10.000: 5,09 s (lần trước 6,88 s), mốc 10 s.
-  Chi phí chính (đo): mục đổi rải đều 64 phần dữ liệu nên chrome.storage phải ghi lại gần hết (kèm báo thay đổi cho các trang khác) — ~3,9 s ở 50.000 dấu trang. Sẽ giải quyết ở bản làm lại cách lưu.
-- Bản Soul: 23/23 (thêm CT-114). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
-- Chưa thử được ở máy: Soul thật với ~11.000 dấu trang trong Kho (thời gian đổi chữ hàng loạt).
+2026-11-06, bản 2.5.0, giờ Asia/Ho_Chi_Minh.
+- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10 (CT-115…CT-118; 50.000 dấu trang: tìm trùng địa chỉ 36 ms, tên 32 ms, xử lý 41 ms).
+- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10 (CT-119…CT-123; 50.000 dấu trang mở màn 0,12 s).
+- Bản Soul: 24/24 (thêm CT-124). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
+- Chưa thử được ở máy: Soul thật (nhấn ô Giữ, cuộn danh sách nhóm dài trên điện thoại).
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
@@ -383,6 +399,7 @@ Bản 2.4.0 (CN-20 đổi chữ hàng loạt) — thêm 2026-11-06.
 - 2.2.0 (2026-11-04): script "Sổ Dấu Trang – Kho" 1.0.0 giữ dữ liệu bản Soul qua các lần cập nhật script chính (CN-19); tự chuyển dữ liệu sang Kho, gộp khi hai bên đều có; báo lỗi không ghi khi Kho bị tắt; trình quản lý có dòng nhắc cài Kho; Sao lưu ghi nơi cất. manager.js nhận env.notice và env.storageInfo (bản tiện ích không dùng). DATA_VERSION giữ 2.
 - 2.3.0 (2026-11-05): tìm kiếm thêm ba cách so chữ: phân biệt hoa thường, đúng cụm, regex (CN-06); thẻ điều kiện, báo regex sai, dừng regex quá lâu. Áp dụng cả bản máy tính và bản Soul. DATA_VERSION giữ 2.
 - 2.4.0 (2026-11-06): đổi chữ hàng loạt ở tên / địa chỉ (CN-20): ⋯ → Đổi chữ các kết quả, nút Đổi chữ trên thanh chọn nhiều, xem trước, Hoàn tác, báo mục bỏ qua / trùng địa chỉ. Thanh chọn nhiều 6 nút chia đều. DATA_VERSION giữ 2.
+- 2.5.0 (2026-11-06): tìm dấu trang trùng địa chỉ / tên, so sánh, chọn giữ, xóa mục thừa, gộp nhãn, Hoàn tác (CN-21). DATA_VERSION giữ 2. Phương án làm lại cách lưu (3.0.0, IndexedDB cho bản máy tính) vẫn chờ người dùng duyệt.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.

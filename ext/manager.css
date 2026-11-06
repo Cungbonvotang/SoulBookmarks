@@ -140,6 +140,27 @@ a.rtitle:hover { color: var(--accent); }
 .rp-row s { color: var(--muted); }
 .rp-row b { font-weight: 600; }
 .rp-arrow { color: var(--muted); font-size: 11px; }
+.dups { display: grid; gap: 10px; }
+.dup-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.dup-sum { margin: 0; font-weight: 600; }
+.dup-list { display: grid; gap: 12px; }
+.dgroup { border: 1px solid var(--line); border-radius: 16px; padding: 10px; display: grid; gap: 8px; background: var(--surface); }
+.dg-head { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.dg-key { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dg-items { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.ditem { display: grid; grid-template-columns: auto 1fr; gap: 8px; padding: 8px; border-radius: 12px; background: var(--field); border: 2px solid transparent; min-width: 0; }
+.ditem.kept { border-color: var(--accent); background: var(--accent-soft); }
+.dkeep { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; min-width: 44px; min-height: 44px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dkeep input { width: 22px; height: 22px; accent-color: var(--accent); margin: 4px 0 0; }
+.ditem:not(.kept) .dkeep span { color: var(--ribbon); }
+.dbody { display: grid; gap: 3px; min-width: 0; }
+.df { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.df.dt { font-size: 14.5px; color: var(--ink); font-weight: 600; text-decoration: none; }
+.df.diff { color: var(--ink); font-weight: 700; }
+.df.dt.diff { text-decoration: underline; text-decoration-color: var(--folder); text-decoration-thickness: 2px; }
+.df.dtags { display: flex; flex-wrap: wrap; gap: 4px; }
+.dg-acts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.dg-acts .btn, .dup-bar .btn, .dup-list > .btn { min-height: 44px; }
 .h3row { display: flex; justify-content: space-between; align-items: center; }
 .tagpick { display: flex; flex-wrap: wrap; gap: 7px; max-height: 210px; overflow: auto; }
 .tpick { position: relative; border-radius: 17px; }
