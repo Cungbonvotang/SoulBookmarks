@@ -272,6 +272,8 @@
   function closeSheet() { if (sheet.open) sheet.close(); refreshRibbon(); }
 
   /* ---------- trình quản lý lớp phủ ---------- */
+  // Nhớ cách sắp xếp, chỗ đang xem, vị trí cuộn: cất trong Kho (chung mọi trang, còn sau khi cập nhật script).
+  const mgrState = { load: () => uiPrefs().mgr || null, save: o => setUiPref('mgr', o) };
   const overlay = h('div', { class: 'ovl', 'data-test': 'soul-overlay', hidden: true });
   wrap.append(overlay);
   let manager = null;
@@ -294,6 +296,7 @@
     savedOverflow = null;
   }
   function openUrl(url) {
+    if (!SDT.safeUrl(url)) return;
     try { if (typeof GM_openInTab === 'function') { GM_openInTab(url, false); return; } } catch (e) { /* thử cách khác */ }
     window.open(url, '_blank', 'noopener');
   }
@@ -301,13 +304,14 @@
     if (sheet.open) sheet.close();
     if (!overlay.hidden) return;
     overlay.hidden = false;
-    if (!manager) manager = SDTNS.SDTManager.mount(overlay, { store, openUrl, notice, storageInfo, onClose: () => closeManager(), pasteBackup: true, scroller: () => overlay, keyTarget: overlay });
-    else manager.reload();
+    if (!manager) manager = SDTNS.SDTManager.mount(overlay, { store, openUrl, notice, storageInfo, state: mgrState, onClose: () => closeManager(), pasteBackup: true, scroller: () => overlay, keyTarget: overlay });
+    else manager.reopen();
     lockScroll();
     try { history.pushState(Object.assign({}, history.state, { sdtOverlay: true }), ''); pushed = true; } catch (e) { pushed = false; }
   }
   function closeManager(fromPop) {
     if (overlay.hidden) return;
+    if (manager) manager.saveState();
     overlay.hidden = true;
     if (manager) manager.setDrawer(false);
     unlockScroll();

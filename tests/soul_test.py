@@ -387,6 +387,21 @@ with sync_playwright() as p:
     ok('CT-124 Soul: tìm trùng, xóa mục không giữ, gộp nhãn', sm124 == 'Có 1 nhóm trùng, 1 dấu trang thừa.' and 'dupx' not in ids124 and 'b1' in ids124 and 'cũ' in b1t, [sm124, b1t])
     V.close()
 
+    # CT-140 Soul: nhớ chỗ xem và cách sắp xếp qua các trang (cất cùng dữ liệu, còn sau khi đóng)
+    V = newpage(ctx, f'{L}/trang-thu.html')
+    seed_sample(V); open_mgr(V)
+    V.evaluate("() => window.__SDT_SOUL__.shadow.querySelector('[data-test=\"folder-item\"][data-id=\"gt\"] [data-test=\"folder-caret\"]').click()"); W(V, 200)
+    V.evaluate("() => window.__SDT_SOUL__.shadow.querySelector('[data-test=\"folder-item\"][data-id=\"an\"] [data-test=\"folder-open\"]').click()"); W(V, 300)
+    T(V, 'sort-select').select_option('za'); W(V, 300)
+    V.evaluate("() => window.__SDT_SOUL__.closeManager()"); W(V, 300)
+    open_mgr(V); same_page = (T(V, 'view-title').inner_text().strip(), T(V, 'sort-select').input_value())
+    V.close()
+    V = newpage(ctx, f'{L}/trang-hai.html'); open_mgr(V)
+    other_page = (T(V, 'view-title').inner_text().strip(), T(V, 'sort-select').input_value())
+    ok('CT-140 Soul: mở lại (cùng trang, trang khác) đúng thư mục và cách sắp xếp', same_page == ('Anime', 'za') and other_page == ('Anime', 'za'), [same_page, other_page])
+    V.evaluate("() => GM_deleteValue('sdt_ui')")
+    V.close()
+
     # CT-C7 dữ liệu hỏng
     snap = dict(GM)
     GM['sdt_b_3'] = json.dumps('không phải danh sách')

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sổ Dấu Trang
 // @namespace    so-dau-trang
-// @version      2.5.0
+// @version      2.6.0
 // @description  Lưu dấu trang theo thư mục và nhãn; nút ruy băng cho biết trang đang mở đã lưu chưa. Dữ liệu chỉ nằm trong trình duyệt.
 // @homepageURL  https://github.com/Cungbonvotang/SoulBookmarks
 // @updateURL    https://raw.githubusercontent.com/Cungbonvotang/SoulBookmarks/main/so-dau-trang.user.js
@@ -564,6 +564,15 @@ const SDTNS = {};
     return f;
   }
   const REGEX_MAX = 200;
+  // Thử cờ u (đúng chữ Việt, emoji); cách viết hợp lệ quen thuộc mà cờ u không nhận (\-, \_, a{2…) thì thử lại không có u.
+  function makeRegex(src, flags) {
+    try { return { re: new RegExp(src, flags + 'u') }; } catch (e1) {
+      try { return { re: new RegExp(src, flags) }; } catch (e2) { return { error: 'Biểu thức chưa đúng: ' + String(e2.message).replace(/^Invalid regular expression: /, '') }; }
+    }
+  }
+  // Chỉ mở / hiện liên kết cho địa chỉ http, https, ftp, file.
+  const SAFE_URL_RE = /^(https?|ftp|file):/i;
+  function safeUrl(u) { return typeof u === 'string' && SAFE_URL_RE.test(u.trim()); }
   const SEARCH_BUDGET_MS = 1500;
   const nfc = s => String(s == null ? '' : s).normalize('NFC');
   /* Bộ so chữ cho một ô điều kiện. field: 'all' (tên, địa chỉ, nhãn) | 't' (tên) | 'u' (địa chỉ).
@@ -576,8 +585,9 @@ const SDTNS = {};
     if (q.regex) {
       const src = raw.trim();
       if (src.length > REGEX_MAX) return { error: 'Biểu thức dài quá ' + REGEX_MAX + ' ký tự.' };
-      let re;
-      try { re = new RegExp(nfc(src), q.caseSensitive ? 'u' : 'iu'); } catch (e) { return { error: 'Biểu thức chưa đúng: ' + e.message.replace(/^Invalid regular expression: /, '') }; }
+      const mk = makeRegex(nfc(src), q.caseSensitive ? '' : 'i');
+      if (mk.error) return { error: mk.error };
+      const re = mk.re;
       return { test: b => parts.some(i => { re.lastIndex = 0; return re.test(nfc(pick(b, i))); }) };
     }
     if (q.phrase) {
@@ -642,10 +652,9 @@ const SDTNS = {};
     const find = String(o.find == null ? '' : o.find).normalize('NFC');
     if (!find) return { ok: false, error: 'Nhập chữ cần tìm.' };
     if (o.regex && find.length > REGEX_MAX) return { ok: false, error: 'Biểu thức dài quá ' + REGEX_MAX + ' ký tự.' };
-    let re;
-    try {
-      re = new RegExp(o.regex ? find : find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g' + (o.caseSensitive ? '' : 'i') + 'u');
-    } catch (e) { return { ok: false, error: 'Biểu thức chưa đúng: ' + e.message.replace(/^Invalid regular expression: /, '') }; }
+    const mk = makeRegex(o.regex ? find : find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g' + (o.caseSensitive ? '' : 'i'));
+    if (mk.error) return { ok: false, error: mk.error };
+    const re = mk.re;
     const rep = String(o.replace == null ? '' : o.replace).normalize('NFC');
     const swap = s => (o.regex ? s.replace(re, rep) : s.replace(re, () => rep));
     const want = new Set(ids);
@@ -765,7 +774,7 @@ const SDTNS = {};
     if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) return { ok: false, error: 'Không đúng định dạng dữ liệu của Sổ Dấu Trang (thiếu số phiên bản dữ liệu).' };
     if (v > DATA_VERSION) return { ok: false, code: 'newer', error: 'Dữ liệu được tạo bởi bản mới hơn (dữ liệu v' + v + ', bản này đọc được tới v' + DATA_VERSION + '). Hãy cập nhật Sổ Dấu Trang.' };
     if (!Array.isArray(obj.folders) || !Array.isArray(obj.bookmarks)) return { ok: false, error: 'Không đúng định dạng dữ liệu của Sổ Dấu Trang (thiếu danh sách thư mục hoặc dấu trang).' };
-    let bad = 0;
+    let bad = 0, dropped = 0;
     const folders = [];
     const fseen = new Set();
     for (const f of obj.folders) {
@@ -787,7 +796,7 @@ const SDTNS = {};
         const fx = fixUrl(b.url);
         if (!fx.ok) { bad++; continue; }
         url = fx.url;
-      }
+      } else if (!SAFE_URL_RE.test(url)) { dropped++; continue; }   // kho bị chèn địa chỉ lạ (javascript:…): bỏ qua, không khóa app
       bseen.add(b.id);
       bookmarks.push({
         id: b.id,
@@ -807,7 +816,7 @@ const SDTNS = {};
       for (const [k, c] of Object.entries(obj.tagColors)) if (TAG_COLORS.includes(c)) tagColors[lower(k)] = c;
     }
     const data = migrate(fixRefs({ version: v, folders, bookmarks, tagColors }), v);
-    return { ok: true, data, fromVersion: v };
+    return { ok: true, data, fromVersion: v, dropped };
   }
   function fixRefs(data) {
     const ids = new Set(data.folders.map(f => f.id));
@@ -896,9 +905,47 @@ const SDTNS = {};
     }
     const deletes = [];
     for (const o of a.bookmarks) if (!seen.has(o.id)) deletes.push(o);
-    const foldersChanged = a.folders !== b.folders && JSON.stringify(a.folders) !== JSON.stringify(b.folders);
-    const tagColorsChanged = JSON.stringify(a.tagColors || {}) !== JSON.stringify(b.tagColors || {});
-    return { upserts, deletes, olds, folders: foldersChanged ? b.folders : null, tagColors: tagColorsChanged ? (b.tagColors || {}) : null };
+    // Thư mục, màu nhãn: ghi theo từng mục để không đè thay đổi của nơi khác.
+    let folderUpserts = [], folderDeletes = [];
+    if (a.folders !== b.folders) {
+      const fa = new Map(a.folders.map(f => [f.id, f]));
+      const fb = new Set();
+      for (const f of b.folders) { fb.add(f.id); const o = fa.get(f.id); if (!o || (o !== f && JSON.stringify(o) !== JSON.stringify(f))) folderUpserts.push(f); }
+      for (const f of a.folders) if (!fb.has(f.id)) folderDeletes.push(f.id);
+    }
+    const foldersChanged = folderUpserts.length > 0 || folderDeletes.length > 0;
+    const ca = a.tagColors || {}, cb = b.tagColors || {};
+    const tagColorSet = {};
+    for (const k of new Set(Object.keys(ca).concat(Object.keys(cb)))) if (ca[k] !== cb[k]) tagColorSet[k] = cb[k] === undefined ? null : cb[k];
+    const tagColorsChanged = Object.keys(tagColorSet).length > 0;
+    return { upserts, deletes, olds, folders: foldersChanged ? b.folders : null, folderUpserts, folderDeletes, tagColors: tagColorsChanged ? cb : null, tagColorSet };
+  }
+
+  // Hoàn tác: trả lại đúng các mục mà bước before → after đã đổi, trên dữ liệu hiện tại (giữ thay đổi của nơi khác).
+  function revertChanges(cur, before, after) {
+    const undo = (curList, bList, aList) => {
+      if (bList === aList) return curList;
+      const bMap = new Map(bList.map(x => [x.id, x])), aIds = new Set();
+      const restore = new Map(), remove = new Set();
+      for (const x of aList) { aIds.add(x.id); const o = bMap.get(x.id); if (o !== x) { if (o) restore.set(x.id, o); else remove.add(x.id); } }
+      for (const o of bList) if (!aIds.has(o.id)) restore.set(o.id, o);
+      if (!restore.size && !remove.size) return curList;
+      const out = [], seen = new Set();
+      for (const x of curList) {
+        if (remove.has(x.id)) continue;
+        if (restore.has(x.id)) { out.push(restore.get(x.id)); seen.add(x.id); } else out.push(x);
+      }
+      for (const [id, o] of restore) if (!seen.has(id)) out.push(o);
+      return out;
+    };
+    const tagColors = assign(cur.tagColors || {}, {});
+    const ca = before.tagColors || {}, cb = after.tagColors || {};
+    for (const k of new Set(Object.keys(ca).concat(Object.keys(cb)))) if (ca[k] !== cb[k]) { if (ca[k] === undefined) delete tagColors[k]; else tagColors[k] = ca[k]; }
+    return fixRefs(assign(cur, {
+      folders: undo(cur.folders, before.folders, after.folders),
+      bookmarks: undo(cur.bookmarks, before.bookmarks, after.bookmarks),
+      tagColors,
+    }));
   }
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -1024,7 +1071,8 @@ const SDTNS = {};
       if (!(bOrd.get(p) >= b.order)) bOrd.set(p, b.order);
     }
     const map = new Map();
-    let foldersAdded = 0, added = 0, dup = 0;
+    let foldersAdded = 0, added = 0, dup = 0, dupInFile = 0;
+    const fromFile = new Map();             // thư mục → khóa địa chỉ thêm từ chính tệp này
     // thư mục theo thứ tự trong tệp: cha luôn đứng trước con
     for (const f of inc.folders) {
       const p = f.parentId ? map.get(f.parentId) : null;
@@ -1044,14 +1092,16 @@ const SDTNS = {};
       const fid = b.folderId ? map.get(b.folderId) : null;
       const pk = k(fid);
       if (!keys.has(pk)) keys.set(pk, new Set());
-      if (keys.get(pk).has(b.urlKey)) { dup++; continue; }
+      if (!fromFile.has(pk)) fromFile.set(pk, new Set());
+      if (keys.get(pk).has(b.urlKey)) { if (fromFile.get(pk).has(b.urlKey)) dupInFile++; else dup++; continue; }
       keys.get(pk).add(b.urlKey);
+      fromFile.get(pk).add(b.urlKey);
       const order = (bOrd.has(pk) ? bOrd.get(pk) : 0) + 1;
       bOrd.set(pk, order);
       bookmarks.push(assign(b, { folderId: fid, order }));
       added++;
     }
-    return { data: assign(cur, { folders, bookmarks }), added, dup, foldersAdded };
+    return { data: assign(cur, { folders, bookmarks }), added, dup, dupInFile, foldersAdded };
   }
   function exportHtml(data, ms) {
     const sec = t => Math.floor((Number.isFinite(t) ? t : ms) / 1000);
@@ -1099,7 +1149,7 @@ const SDTNS = {};
     placeItems, copyItems, findByUrl, addBookmark, updateBookmark, deleteBookmarks, restoreBookmarks, bulkAddTags, bulkMove, deleteItems,
     isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, bulkReplace, findDuplicates, resolveDuplicates, normalizeRange, hasDate, hasFilters, isSearching,
     sortBookmarks, foldedOf, search, listFolder, folderStats,
-    validateData, fixRefs, migrate, mergeData, diffData, exportFileName, exportPayload, localDay,
+    validateData, fixRefs, migrate, mergeData, diffData, revertChanges, safeUrl, exportFileName, exportPayload, localDay,
     exportHtmlFileName, isBookmarksHtml, decodeEntities, parseBookmarksHtml, mergeImported, exportHtml,
     formatDate, formatDateTime, dayToVN, monthToVN,
   };
@@ -1164,10 +1214,11 @@ const SDT = SDTNS.SDT;
     if (backend.subscribe) {
       backend.subscribe(changes => {
         const m = changes[K.meta];
-        if (!m) return;
-        const nv = m.newValue;
-        if (nv && nv.writer === writer) return;          // chính mình ghi: đã báo qua kênh trong trang
-        lastRev = nv ? nv.rev : null;
+        const bad = changes[K.error] && changes[K.error].newValue;   // nơi khác phát hiện dữ liệu hỏng
+        if (!m && !bad) return;
+        const nv = m ? m.newValue : null;
+        if (m && nv && nv.writer === writer && !bad) return;          // chính mình ghi: đã báo qua kênh trong trang
+        if (m) lastRev = nv ? nv.rev : null;
         emit({ own: false, origin: null, rev: lastRev, keys: Object.keys(changes) });
       });
     }
@@ -1229,7 +1280,7 @@ const SDT = SDTNS.SDT;
       const v = SDT.validateData({ version: SDT.DATA_VERSION, folders, bookmarks, tagColors: e.meta.tagColors }, { trusted: true });
       if (!v.ok) return markBad(v.error, r);
       lastRev = e.meta.rev;
-      return { ok: true, data: v.data, rev: e.meta.rev, meta: e.meta };
+      return { ok: true, data: v.data, rev: e.meta.rev, meta: e.meta, dropped: v.dropped || 0 };
     }
 
     // Phần nhẹ cho popup / bảng lưu nhanh: thư mục, màu nhãn, danh sách nhãn.
@@ -1310,8 +1361,24 @@ const SDT = SDTNS.SDT;
         for (const b of upserts) { const o = stored.get(b.id); if (o) { rm(o.urlKey, o.id); dec(o.tags); } add(b.urlKey, b.id); inc(b.tags); }
         out[K.tagstat] = st;
       }
-      if (diff.folders) out[K.folders] = diff.folders;
-      if (diff.tagColors) meta.tagColors = diff.tagColors;
+      // Thư mục: đọc bản đang lưu rồi áp từng thay đổi (không đè thư mục nơi khác vừa tạo / sửa).
+      const fu = diff.folderUpserts || [], fd = diff.folderDeletes || [];
+      if (fu.length || fd.length) {
+        let stored;
+        try { stored = (await backend.get([K.folders]))[K.folders]; } catch (err) { stored = undefined; }
+        if (stored !== undefined && !Array.isArray(stored)) { await markBad('Phần dữ liệu "' + K.folders + '" bị hỏng.', { [K.folders]: stored }); throw new Error('Dữ liệu đang lỗi nên không ghi.'); }
+        const del = new Set(fd), up = new Map(fu.map(f => [f.id, f]));
+        const list = (stored || []).filter(f => f && !del.has(f.id) && !up.has(f.id));
+        for (const f of fu) list.push(f);
+        out[K.folders] = list;
+      } else if (diff.folders) out[K.folders] = diff.folders;
+      // Màu nhãn: chỉ đổi các nhãn vừa đổi màu.
+      const tcs = diff.tagColorSet;
+      if (tcs && Object.keys(tcs).length) {
+        const tc = Object.assign({}, meta.tagColors || {});
+        for (const [k, c] of Object.entries(tcs)) { if (c === null) delete tc[k]; else tc[k] = c; }
+        meta.tagColors = tc;
+      } else if (diff.tagColors && !tcs) meta.tagColors = diff.tagColors;
       meta.rev = (meta.rev || 0) + 1;
       meta.writer = writer;
       out[K.meta] = meta;
@@ -1323,7 +1390,7 @@ const SDT = SDTNS.SDT;
 
     async function save(oldData, newData, origin) {
       const d = SDT.diffData(oldData, newData);
-      if (!d.upserts.length && !d.deletes.length && !d.folders && !d.tagColors) return { rev: lastRev, keys: [] };
+      if (!d.upserts.length && !d.deletes.length && !d.folders && !d.tagColors) return { rev: lastRev, keys: [] };   // (folders/tagColors chỉ khác null khi có thay đổi theo mục)
       return apply(d, origin);
     }
 
@@ -1963,6 +2030,7 @@ const SDTUI = SDTNS.SDTUI;
      pasteBackup?: bool   // thêm Chép / Dán dữ liệu ở màn Sao lưu
      keyTarget?           // nơi nghe phím tắt
      scroller?()          // phần tử cuộn danh sách (mặc định là trang)
+     state?: { load(), save(obj) }   // nhớ cách sắp xếp, chỗ đang xem, vị trí cuộn (2.6.0)
    } */
 (function (root) {
   'use strict';
@@ -2030,11 +2098,15 @@ const SDTUI = SDTNS.SDTUI;
       } catch (e) { toast('Không lưu được: ' + (e && e.message ? e.message : e), { error: true }); return false; }
       S.data = newData;
       if (opts.force) { S.readOnly = false; S.loadError = ''; S.rawBad = undefined; }
-      for (const [k, it] of [...S.selected]) if (!exists(it)) S.selected.delete(k);
+      if (S.selected.size) {
+        const fIds = new Set(S.data.folders.map(f => f.id)), bIds = new Set(S.data.bookmarks.map(b => b.id));
+        for (const [k, it] of [...S.selected]) if (!(it.kind === 'f' ? fIds.has(it.id) : bIds.has(it.id))) S.selected.delete(k);
+      }
       if (!['all', 'root'].includes(S.view) && !SDT.getFolder(S.data, S.view)) S.view = 'root';
       renderAll(opts.keepScroll !== false);
       if (opts.undo) {
-        toast(opts.undo, { action: 'Hoàn tác', onAction: async () => { if (await commit(prev, { keepScroll: true })) toast('Đã hoàn tác.'); } });
+        // Hoàn tác chỉ trả lại các mục bước này đã đổi; thay đổi của nơi khác (popup, tab khác) giữ nguyên.
+        toast(opts.undo, { action: 'Hoàn tác', onAction: async () => { if (await commit(SDT.revertChanges(S.data, prev, newData), { keepScroll: true })) toast('Đã hoàn tác.'); } });
       }
       return true;
     }
@@ -2078,6 +2150,7 @@ const SDTUI = SDTNS.SDTUI;
       walk(null, 0);
       if (!S.data.folders.length) list.append(h('p', { class: 'tempty' }, 'Chưa có thư mục. Bấm + để tạo.'));
       tree.append(list);
+      scheduleSave();
     }
 
     function goView(key) {
@@ -2214,8 +2287,8 @@ const SDTUI = SDTNS.SDTUI;
       const row = h('div', { class: 'row brow' + (sel ? ' sel' : '') + (isCut(it) ? ' cut' : ''), 'data-test': 'list-item', 'data-id': b.id, 'data-row': 'b', tabindex: '0' },
         lead,
         h('div', { class: 'rtext' },
-          h('a', { class: 'rtitle item-title', 'data-test': 'item-title', href: b.url, target: '_blank', rel: 'noopener noreferrer', title: b.url, draggable: 'false',
-            onclick: e => { if (S.selectMode) { e.preventDefault(); toggleSel(it, !sel); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
+          h('a', { class: 'rtitle item-title', 'data-test': 'item-title', href: SDT.safeUrl(b.url) ? b.url : null, target: '_blank', rel: 'noopener noreferrer', title: b.url, draggable: 'false',
+            onclick: e => { if (S.selectMode) { e.preventDefault(); toggleSel(it, !S.selected.has(keyOf(it))); return; } if (!SDT.safeUrl(b.url)) { e.preventDefault(); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
           h('div', { class: 'rmeta' },
             h('span', { class: 'dom', 'data-test': 'item-domain' }, SDT.domainOf(b.url)),
             h('span', { class: 'date', 'data-test': 'item-date' }, dateText)),
@@ -2295,6 +2368,7 @@ const SDTUI = SDTNS.SDTUI;
       renderBulk();
       updateFilterBadge();
       if (keepScroll) sc.scrollTop = top; else if (sc.scrollTop > 0 && !keepScroll) sc.scrollTop = 0;
+      scheduleSave();
     }
     function appendMore(n) {
       const list = $('list');
@@ -2395,7 +2469,7 @@ const SDTUI = SDTNS.SDTUI;
       if (!b) return;
       const it = { kind: 'b', id };
       contextMenu([
-        { label: 'Mở trong tab mới', icon: 'open', test: 'm-open', onSelect: () => (env.openUrl ? env.openUrl(b.url) : window.open(b.url, '_blank', 'noopener')) },
+        { label: 'Mở trong tab mới', icon: 'open', test: 'm-open', onSelect: () => { if (!SDT.safeUrl(b.url)) return; env.openUrl ? env.openUrl(b.url) : window.open(b.url, '_blank', 'noopener'); } },
         { label: 'Sửa', icon: 'edit', test: 'm-edit', onSelect: () => openEditor(id) },
         { label: 'Chép địa chỉ', icon: 'link', test: 'm-copyurl', onSelect: async () => toast((await copyText(b.url)) ? 'Đã chép địa chỉ.' : 'Không chép được.') },
         'sep',
@@ -2449,9 +2523,11 @@ const SDTUI = SDTNS.SDTUI;
       if (!r.ok) { toast(r.error, { error: true }); return; }
       const n = S.clip.mode === 'cut' ? r.moved : r.copied;
       const skipped = r.skipped || 0;
-      if (S.clip.mode === 'cut') S.clip = null;
-      if (!n) { toast('Không còn mục nào để dán.', { error: true }); renderList(true); return; }
-      await commit(r.data, { undo: 'Đã dán ' + n + ' mục' + (skipped ? ' (bỏ qua ' + skipped + ' mục không còn)' : '') + '.' });
+      const wasCut = S.clip.mode === 'cut';
+      if (!n) { if (wasCut) S.clip = null; toast('Không còn mục nào để dán.', { error: true }); renderList(true); return; }
+      const clip = S.clip;
+      if (wasCut) S.clip = null;                     // để danh sách vẽ lại không còn mờ "đã cắt"
+      if (!(await commit(r.data, { undo: 'Đã dán ' + n + ' mục' + (skipped ? ' (bỏ qua ' + skipped + ' mục không còn)' : '') + '.' })) && wasCut) { S.clip = clip; renderList(true); }
     }
 
     /* ---------- thư mục ---------- */
@@ -2582,8 +2658,8 @@ const SDTUI = SDTNS.SDTUI;
             return h('article', { class: 'ditem' + (kept ? ' kept' : ''), 'data-test': 'dup-item', 'data-id': b.id },
               h('label', { class: 'dkeep' }, cb, h('span', {}, kept ? 'Giữ' : 'Xóa')),
               h('div', { class: 'dbody' },
-                h('a', { class: 'df dt' + (dTitle ? ' diff' : ''), 'data-test': 'dup-open', href: b.url, target: '_blank', rel: 'noopener noreferrer',
-                  onclick: e => { if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
+                h('a', { class: 'df dt' + (dTitle ? ' diff' : ''), 'data-test': 'dup-open', href: SDT.safeUrl(b.url) ? b.url : null, target: '_blank', rel: 'noopener noreferrer',
+                  onclick: e => { if (!SDT.safeUrl(b.url)) { e.preventDefault(); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
                 field('du', 'dup-url', b.url, dUrl),
                 field('dp', 'dup-folder', '📁 ' + SDT.folderLabel(S.data, b.folderId), dFolder),
                 h('div', { class: 'df dtags' + (dTags ? ' diff' : '') }, ...(b.tags.length ? b.tags.map(t => h('span', { class: 'tag ' + tagClass(S.data, t) }, t)) : [h('span', { class: 'muted' }, 'Không có nhãn')])),
@@ -3117,8 +3193,9 @@ const SDTUI = SDTNS.SDTUI;
       }
       if (S.readOnly) { show('Dữ liệu đang lỗi nên không gộp được. Hãy chọn “Thay thế toàn bộ”.', true); return; }
       const m = SDT.mergeImported(S.data, r.data);
-      if (!m.added && !m.foldersAdded) { show('Đã gộp: thêm 0 dấu trang, bỏ qua ' + m.dup + ' đã có; thêm 0 thư mục.' + skipMsg); return; }
-      if (await commit(m.data)) show('Đã gộp: thêm ' + m.added + ' dấu trang, bỏ qua ' + m.dup + ' đã có; thêm ' + m.foldersAdded + ' thư mục.' + skipMsg);
+      const inFile = m.dupInFile ? ' Bỏ ' + m.dupInFile + ' mục trùng nhau ngay trong tệp.' : '';
+      if (!m.added && !m.foldersAdded) { show('Đã gộp: thêm 0 dấu trang, bỏ qua ' + m.dup + ' đã có; thêm 0 thư mục.' + inFile + skipMsg); return; }
+      if (await commit(m.data)) show('Đã gộp: thêm ' + m.added + ' dấu trang, bỏ qua ' + m.dup + ' đã có; thêm ' + m.foldersAdded + ' thư mục.' + inFile + skipMsg);
     }
 
     function openMore() {
@@ -3132,6 +3209,73 @@ const SDTUI = SDTNS.SDTUI;
         { label: 'Nhãn và màu nhãn', icon: 'tag', test: 'menu-tags', onSelect: openTags },
         { label: 'Sao lưu: xuất / nhập', icon: 'paste', test: 'menu-backup', onSelect: openBackup },
       ], null, 'Sổ Dấu Trang');
+    }
+
+    /* ---------- nhớ cách sắp xếp, chỗ đang xem, vị trí cuộn (2.6.0) ---------- */
+    const ST = env.state || null;
+    let stateReady = false, stateTimer = 0;
+    const SORTS_F = ['manual', 'created', 'updated', 'az', 'za'], SORTS_L = ['created', 'updated', 'az', 'za'];
+    function scTopY() {
+      const sc = scroller();
+      const own = sc === document.scrollingElement || sc === document.documentElement || sc === document.body;
+      const top = own ? 0 : sc.getBoundingClientRect().top;
+      const bar = container.querySelector('.topbar');
+      return { sc, top, edge: Math.max(top, bar ? bar.getBoundingClientRect().bottom : top) };
+    }
+    function snapshotAnchor() {
+      if (searching()) return S.lastAnchor || null;            // đang tìm: giữ chỗ cũ của thư mục
+      const { top, edge } = scTopY();
+      const rows = $('list').querySelectorAll('[data-row]');
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i].getBoundingClientRect();
+        if (r.height && r.bottom > edge + 1) {
+          const a = { view: S.view, kind: rows[i].getAttribute('data-row'), id: rows[i].getAttribute('data-id'), idx: i, dy: Math.round(r.top - top) };
+          S.lastAnchor = a;
+          return a;
+        }
+      }
+      return S.lastAnchor && S.lastAnchor.view === S.view ? S.lastAnchor : null;
+    }
+    function saveState() {
+      clearTimeout(stateTimer); stateTimer = 0;
+      if (!ST || !stateReady || container.offsetParent === null && !container.getClientRects().length) return;
+      try {
+        ST.save({ v: 1, view: S.view, chain: ['all', 'root'].includes(S.view) ? [] : SDT.folderChain(S.data, S.view).map(f => f.id),
+          sortFolder: S.sortFolder, sortFlat: S.sortFlat, expanded: [...S.expanded], anchor: snapshotAnchor() });
+      } catch (e) { /* bỏ qua */ }
+    }
+    function scheduleSave() { if (!ST || !stateReady) return; clearTimeout(stateTimer); stateTimer = setTimeout(saveState, 300); }
+    function readState() { if (!ST) return null; try { const o = ST.load(); return o && typeof o === 'object' ? o : null; } catch (e) { return null; } }
+    // Áp trạng thái đã nhớ: thư mục đã mất → thư mục cha gần nhất còn lại, không thì "Dấu trang".
+    function applyState(st) {
+      if (!st) return null;
+      if (SORTS_F.includes(st.sortFolder)) S.sortFolder = st.sortFolder;
+      if (SORTS_L.includes(st.sortFlat)) S.sortFlat = st.sortFlat;
+      if (Array.isArray(st.expanded)) S.expanded = new Set(st.expanded.filter(id => SDT.getFolder(S.data, id)));
+      let view = 'root';
+      if (st.view === 'all' || st.view === 'root') view = st.view;
+      else if (typeof st.view === 'string' && SDT.getFolder(S.data, st.view)) view = st.view;
+      else if (Array.isArray(st.chain)) { for (let i = st.chain.length - 1; i >= 0; i--) if (SDT.getFolder(S.data, st.chain[i])) { view = st.chain[i]; break; } }
+      S.view = view;
+      return st.anchor && st.anchor.view === view ? st.anchor : null;
+    }
+    function restoreAnchor(a) {
+      if (!a || !S.entries.length) return;
+      let idx = S.entries.findIndex(e => e.kind === a.kind && e.item.id === a.id);
+      if (idx < 0) idx = Math.min(Number(a.idx) || 0, S.entries.length - 1);     // mục đã mất: vị trí gần nhất
+      if (S.shown <= idx) appendMore(idx + 1 - S.shown + PAGE);
+      const e = S.entries[idx];
+      const row = $('list').querySelector('[data-row="' + e.kind + '"][data-id="' + CSS.escape(e.item.id) + '"]');
+      if (!row) return;
+      const { sc, top } = scTopY();
+      sc.scrollTop += row.getBoundingClientRect().top - top - (Number(a.dy) || 0);
+      S.lastAnchor = { view: S.view, kind: e.kind, id: e.item.id, idx, dy: Number(a.dy) || 0 };
+    }
+    async function reopen() {
+      const st = readState();
+      await reload();
+      const a = applyState(st);
+      if (st) { renderAll(false); restoreAnchor(a); }
     }
 
     /* ---------- phím tắt ---------- */
@@ -3200,7 +3344,7 @@ const SDTUI = SDTNS.SDTUI;
       return true;
     }
     async function reload(info) {
-      if (info && info.keys && !S.readOnly && root.SDTStorage) {
+      if (info && info.keys && !info.keys.includes('sdt_error') && !S.readOnly && root.SDTStorage) {
         try {
           if (await reloadPartial(info.keys)) {
             if (!['all', 'root'].includes(S.view) && !SDT.getFolder(S.data, S.view)) S.view = 'root';
@@ -3221,7 +3365,15 @@ const SDTUI = SDTNS.SDTUI;
       const res = await store.loadAll();
       if (res.ok) S.data = res.data;
       else { S.readOnly = true; S.loadError = res.error; S.rawBad = res.raw; S.data = SDT.emptyData(); }
+      const anchor = res.ok ? applyState(readState()) : null;
       renderAll(false);
+      restoreAnchor(anchor);
+      stateReady = true;
+      const scEl = env.scroller ? env.scroller() : window;
+      scEl.addEventListener('scroll', scheduleSave, { passive: true });
+      window.addEventListener('pagehide', saveState);
+      document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+      if (res.ok && res.dropped) toast('Bỏ qua ' + res.dropped + ' mục có địa chỉ không hợp lệ trong dữ liệu.', { error: true });
       container.classList.add('ready');
       if (!window.__sdtReady) window.__sdtReady = performance.now();
       warmSearch();
@@ -3239,7 +3391,7 @@ const SDTUI = SDTNS.SDTUI;
       idle(step);
     }
     const ready = start();
-    return { reload, setDrawer, ready };
+    return { reload, reopen, saveState, setDrawer, ready };
   }
 
   root.SDTManager = { mount };
@@ -3520,6 +3672,8 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
   function closeSheet() { if (sheet.open) sheet.close(); refreshRibbon(); }
 
   /* ---------- trình quản lý lớp phủ ---------- */
+  // Nhớ cách sắp xếp, chỗ đang xem, vị trí cuộn: cất trong Kho (chung mọi trang, còn sau khi cập nhật script).
+  const mgrState = { load: () => uiPrefs().mgr || null, save: o => setUiPref('mgr', o) };
   const overlay = h('div', { class: 'ovl', 'data-test': 'soul-overlay', hidden: true });
   wrap.append(overlay);
   let manager = null;
@@ -3542,6 +3696,7 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     savedOverflow = null;
   }
   function openUrl(url) {
+    if (!SDT.safeUrl(url)) return;
     try { if (typeof GM_openInTab === 'function') { GM_openInTab(url, false); return; } } catch (e) { /* thử cách khác */ }
     window.open(url, '_blank', 'noopener');
   }
@@ -3549,13 +3704,14 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     if (sheet.open) sheet.close();
     if (!overlay.hidden) return;
     overlay.hidden = false;
-    if (!manager) manager = SDTNS.SDTManager.mount(overlay, { store, openUrl, notice, storageInfo, onClose: () => closeManager(), pasteBackup: true, scroller: () => overlay, keyTarget: overlay });
-    else manager.reload();
+    if (!manager) manager = SDTNS.SDTManager.mount(overlay, { store, openUrl, notice, storageInfo, state: mgrState, onClose: () => closeManager(), pasteBackup: true, scroller: () => overlay, keyTarget: overlay });
+    else manager.reopen();
     lockScroll();
     try { history.pushState(Object.assign({}, history.state, { sdtOverlay: true }), ''); pushed = true; } catch (e) { pushed = false; }
   }
   function closeManager(fromPop) {
     if (overlay.hidden) return;
+    if (manager) manager.saveState();
     overlay.hidden = true;
     if (manager) manager.setDrawer(false);
     unlockScroll();

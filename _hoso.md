@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.5.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.6.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -140,6 +140,12 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: tệp rất lớn (~100 MB do ảnh biểu tượng) → đọc được, bỏ ảnh; khi đọc hiện "Đang đọc tệp…"; máy thử ≤ 5 giây.
   - Biên: tệp HTML không phải tệp dấu trang, hoặc không có dấu trang/thư mục nào → báo lỗi, dữ liệu giữ nguyên.
   - Không đổi: "Chép / Dán dữ liệu" của bản Soul vẫn là JSON.
+
+- CN-22 Trình quản lý mở lại ở chỗ thao tác lần cuối. [mới ở 2.6.0]
+  - Nhớ: cách sắp xếp (riêng cho xem trong thư mục và cho xem phẳng "Tất cả"/kết quả tìm), chỗ đang xem (Tất cả / Dấu trang / thư mục), mục đang ở đầu màn hình (vị trí cuộn), các thư mục đang mở trong cây. Không nhớ ô tìm và bộ lọc.
+  - Nơi lưu: bản tiện ích — localStorage "sdt_mgr" của trang tiện ích; bản Soul — khóa sdt_ui (mục "mgr") trong script Kho (chung mọi trang, còn sau khi cập nhật). Không nằm trong dữ liệu dấu trang, không vào tệp sao lưu.
+  - Chấp nhận: vào thư mục, chọn A–Z, cuộn xuống, đóng → mở lại → đúng thư mục, A–Z, cùng mục ở đầu màn hình (lệch ≤ 3px), cây mở như cũ.
+  - Biên: thư mục đã nhớ bị xóa → mở thư mục cha gần nhất còn lại, không thì "Dấu trang". Mục đầu màn hình đã xóa/chuyển → vị trí gần nhất trong danh sách. Nhiều tab → tab thao tác sau cùng quyết định. Đang tìm khi đóng → nhớ chỗ trước khi tìm. Ghi sau khi ngừng cuộn 0,3 s và khi đóng trang / đóng lớp phủ.
 
 - CN-21 Tìm dấu trang trùng để so sánh, chọn giữ lại. [mới ở 2.5.0]
   - Mở: nút ⋯ → "Tìm dấu trang trùng". Hai thẻ: "Trùng địa chỉ" (cùng khóa địa chỉ theo CN-05; khác "?…" không tính) và "Trùng tên" (không phân biệt hoa thường, khoảng trắng thừa; phân biệt dấu).
@@ -381,14 +387,27 @@ Bản 2.5.0 (CN-21 dấu trang trùng) — thêm 2026-11-06.
 - CT-122 (CN-21) Thẻ "Trùng tên" có nhóm "Du lịch Hà Nội"; "Bỏ qua nhóm này" → hết nhóm; "Áp dụng tất cả" → hỏi xác nhận đúng số → xóa.
 - CT-123 (CN-21, CN-17) 50.000 dấu trang, 5.000 nhóm: mở màn ≤ 1 s, hiện 30 nhóm, "Xem thêm" → 60.
 - CT-124 (CN-21, CN-12) Bản Soul: trong lớp phủ tìm trùng, xóa mục không giữ, gộp nhãn.
+Bản 2.6.0 (CN-22 và 9 lỗi soát ngày 2026-11-09) — thêm 2026-11-09.
+- CT-125 (CN-14 Hoàn tác) Hàm thuần: Hoàn tác xóa / sửa / tạo thư mục / đổi màu chỉ trả lại các mục bước đó đã đổi; dấu trang nơi khác vừa lưu, sửa của nơi khác, thư mục nơi khác tạo, màu nhãn khác giữ nguyên.
+- CT-126 (CN-17) Kho: hai nơi sửa thư mục / màu nhãn gần nhau (một nơi chưa nhận thay đổi của nơi kia) → không mất thư mục, giữ cả hai màu.
+- CT-127 (CN-06, CN-20) Regex "conan\-1", "\_x", "a{2", "Conan \d" dùng được ở ô tìm và Đổi chữ; regex sai thật vẫn báo.
+- CT-128 Kho có mục địa chỉ javascript: → bỏ qua mục đó (không khóa app); safeUrl chỉ nhận http/https/ftp/file.
+- CT-129 (CN-18) Gộp HTML: "đã có" tách khỏi "trùng ngay trong tệp".
+- CT-130…CT-134 (CN-22) Giao diện: mở lại đúng thư mục / sắp xếp / mục đầu màn hình / cây; nhớ riêng sắp xếp phẳng; ô tìm mở trống; mục đầu màn hình bị xóa → vị trí gần nhất; thư mục bị xóa → thư mục cha; hai tab → tab sau cùng.
+- CT-135 Giao diện: xóa → popup lưu mục mới → Hoàn tác → mục cũ trở lại, mục mới còn.
+- CT-136 Chọn nhiều: chạm tên lần hai bỏ chọn.
+- CT-137 Nơi khác ghi dấu "dữ liệu hỏng" → trình quản lý đang mở hiện biểu ngữ ngay.
+- CT-138 Cắt rồi dán khi ghi lỗi → vẫn giữ trạng thái cắt (nút "Dán … vào đây" còn).
+- CT-139 Kho bị chèn mục javascript: → mục không hiện, có thông báo "Bỏ qua 1 mục…", không vào chế độ lỗi.
+- CT-140 (CN-22, bản Soul) Mở lại cùng trang và ở trang khác → đúng thư mục và cách sắp xếp.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-06, bản 2.5.0, giờ Asia/Ho_Chi_Minh.
-- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10 (CT-115…CT-118; 50.000 dấu trang: tìm trùng địa chỉ 36 ms, tên 32 ms, xử lý 41 ms).
-- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10 (CT-119…CT-123; 50.000 dấu trang mở màn 0,12 s).
-- Bản Soul: 24/24 (thêm CT-124). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
-- Chưa thử được ở máy: Soul thật (nhấn ô Giữ, cuộn danh sách nhóm dài trên điện thoại).
+2026-11-09, bản 2.6.0, giờ Asia/Ho_Chi_Minh.
+- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10, sửa lỗi 2.6.0 12/12 (CT-125…CT-129).
+- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10, bản 2.6.0 12/12 (CT-130…CT-139, CT-C1).
+- Bản Soul: 25/25 (thêm CT-140). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
+- Chưa thử được ở máy: popup mở khi đang ở trang quản lý với nhiều cửa sổ (đã sửa theo mã: chỉ lấy tab của cửa sổ đang dùng); Soul thật (vị trí cuộn trong lớp phủ khi mở lại).
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
@@ -400,6 +419,7 @@ Bản 2.5.0 (CN-21 dấu trang trùng) — thêm 2026-11-06.
 - 2.3.0 (2026-11-05): tìm kiếm thêm ba cách so chữ: phân biệt hoa thường, đúng cụm, regex (CN-06); thẻ điều kiện, báo regex sai, dừng regex quá lâu. Áp dụng cả bản máy tính và bản Soul. DATA_VERSION giữ 2.
 - 2.4.0 (2026-11-06): đổi chữ hàng loạt ở tên / địa chỉ (CN-20): ⋯ → Đổi chữ các kết quả, nút Đổi chữ trên thanh chọn nhiều, xem trước, Hoàn tác, báo mục bỏ qua / trùng địa chỉ. Thanh chọn nhiều 6 nút chia đều. DATA_VERSION giữ 2.
 - 2.5.0 (2026-11-06): tìm dấu trang trùng địa chỉ / tên, so sánh, chọn giữ, xóa mục thừa, gộp nhãn, Hoàn tác (CN-21). DATA_VERSION giữ 2. Phương án làm lại cách lưu (3.0.0, IndexedDB cho bản máy tính) vẫn chờ người dùng duyệt.
+- 2.6.0 (2026-11-09): trình quản lý nhớ cách sắp xếp, chỗ xem, vị trí cuộn, cây thư mục (CN-22). Sửa 9 lỗi soát ngày 2026-11-09: Hoàn tác chỉ trả lại mục đã đổi (core.revertChanges); kho ghi thư mục và màu nhãn theo từng mục; regex thử lại không cờ u; kiểm danh sách đang chọn bằng tập mã; chạm tên khi chọn nhiều; bỏ qua / không mở địa chỉ ngoài http, https, ftp, file (core.safeUrl); popup chỉ lấy tab của cửa sổ đang dùng; gộp HTML báo riêng trùng trong tệp; giữ trạng thái cắt khi dán lỗi; báo ngay khi nơi khác ghi dấu dữ liệu hỏng. DATA_VERSION giữ 2.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.
@@ -422,3 +442,4 @@ Bản 2.5.0 (CN-21 dấu trang trùng) — thêm 2026-11-06.
 - [sua-webapp] 2.2.0: kho GM riêng của script chính vẫn giữ bản dữ liệu tại lúc chuyển sang Kho (không xóa, phòng trang giả mạo Kho); bản này cũ dần và mất ở lần cập nhật kế, không được dùng lại vì có dấu "sdt_kho_moved".
 - [sua-webapp] 2.2.0: một trang web cố ý giả mạo script Kho (khi chưa cài Kho, qua đường sự kiện) có thể nhận được bản sao dấu trang; dữ liệu thật không bị xóa. Rủi ro thấp, đã ghi trong màn Sao lưu khi dùng đường trang có thể thấy.
 - [sua-webapp] 2.4.0: thao tác hàng loạt trên nhiều mục rải rác (đổi chữ, xóa, thêm nhãn) ở bản tiện ích tốn ~5 s với 50.000 dấu trang vì chrome.storage ghi lại gần hết các phần dữ liệu. Người dùng chọn làm lại cách lưu (bản sau).
+- [kiem-thu-webapp] Soát toàn diện 2026-11-09 (bản 2.5.0): 9 lỗi — Hoàn tác đè thay đổi của nơi khác (mất dấu trang vừa lưu ở popup / tab khác); regex cờ u từ chối "\-", "\_", "a{2"; kiểm lựa chọn O(chọn × tổng) ~1,4 s với 10.000/50.000; chạm tên khi chọn nhiều không bỏ chọn; kho Soul (đường sự kiện) có thể bị chèn địa chỉ javascript:; popup lấy tab cửa sổ khác; gộp HTML gọi trùng-trong-tệp là "đã có"; dán lỗi làm mất trạng thái cắt; dấu "dữ liệu hỏng" từ nơi khác không báo cho trình quản lý đang mở (kho chỉ báo khi sdt_meta đổi). Đã sửa ở 2.6.0.

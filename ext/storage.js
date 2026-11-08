@@ -54,10 +54,11 @@
     if (backend.subscribe) {
       backend.subscribe(changes => {
         const m = changes[K.meta];
-        if (!m) return;
-        const nv = m.newValue;
-        if (nv && nv.writer === writer) return;          // chính mình ghi: đã báo qua kênh trong trang
-        lastRev = nv ? nv.rev : null;
+        const bad = changes[K.error] && changes[K.error].newValue;   // nơi khác phát hiện dữ liệu hỏng
+        if (!m && !bad) return;
+        const nv = m ? m.newValue : null;
+        if (m && nv && nv.writer === writer && !bad) return;          // chính mình ghi: đã báo qua kênh trong trang
+        if (m) lastRev = nv ? nv.rev : null;
         emit({ own: false, origin: null, rev: lastRev, keys: Object.keys(changes) });
       });
     }
@@ -119,7 +120,7 @@
       const v = SDT.validateData({ version: SDT.DATA_VERSION, folders, bookmarks, tagColors: e.meta.tagColors }, { trusted: true });
       if (!v.ok) return markBad(v.error, r);
       lastRev = e.meta.rev;
-      return { ok: true, data: v.data, rev: e.meta.rev, meta: e.meta };
+      return { ok: true, data: v.data, rev: e.meta.rev, meta: e.meta, dropped: v.dropped || 0 };
     }
 
     // Phần nhẹ cho popup / bảng lưu nhanh: thư mục, màu nhãn, danh sách nhãn.
@@ -200,8 +201,24 @@
         for (const b of upserts) { const o = stored.get(b.id); if (o) { rm(o.urlKey, o.id); dec(o.tags); } add(b.urlKey, b.id); inc(b.tags); }
         out[K.tagstat] = st;
       }
-      if (diff.folders) out[K.folders] = diff.folders;
-      if (diff.tagColors) meta.tagColors = diff.tagColors;
+      // Thư mục: đọc bản đang lưu rồi áp từng thay đổi (không đè thư mục nơi khác vừa tạo / sửa).
+      const fu = diff.folderUpserts || [], fd = diff.folderDeletes || [];
+      if (fu.length || fd.length) {
+        let stored;
+        try { stored = (await backend.get([K.folders]))[K.folders]; } catch (err) { stored = undefined; }
+        if (stored !== undefined && !Array.isArray(stored)) { await markBad('Phần dữ liệu "' + K.folders + '" bị hỏng.', { [K.folders]: stored }); throw new Error('Dữ liệu đang lỗi nên không ghi.'); }
+        const del = new Set(fd), up = new Map(fu.map(f => [f.id, f]));
+        const list = (stored || []).filter(f => f && !del.has(f.id) && !up.has(f.id));
+        for (const f of fu) list.push(f);
+        out[K.folders] = list;
+      } else if (diff.folders) out[K.folders] = diff.folders;
+      // Màu nhãn: chỉ đổi các nhãn vừa đổi màu.
+      const tcs = diff.tagColorSet;
+      if (tcs && Object.keys(tcs).length) {
+        const tc = Object.assign({}, meta.tagColors || {});
+        for (const [k, c] of Object.entries(tcs)) { if (c === null) delete tc[k]; else tc[k] = c; }
+        meta.tagColors = tc;
+      } else if (diff.tagColors && !tcs) meta.tagColors = diff.tagColors;
       meta.rev = (meta.rev || 0) + 1;
       meta.writer = writer;
       out[K.meta] = meta;
@@ -213,7 +230,7 @@
 
     async function save(oldData, newData, origin) {
       const d = SDT.diffData(oldData, newData);
-      if (!d.upserts.length && !d.deletes.length && !d.folders && !d.tagColors) return { rev: lastRev, keys: [] };
+      if (!d.upserts.length && !d.deletes.length && !d.folders && !d.tagColors) return { rev: lastRev, keys: [] };   // (folders/tagColors chỉ khác null khi có thay đổi theo mục)
       return apply(d, origin);
     }
 

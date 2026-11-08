@@ -538,6 +538,15 @@
     return f;
   }
   const REGEX_MAX = 200;
+  // Thử cờ u (đúng chữ Việt, emoji); cách viết hợp lệ quen thuộc mà cờ u không nhận (\-, \_, a{2…) thì thử lại không có u.
+  function makeRegex(src, flags) {
+    try { return { re: new RegExp(src, flags + 'u') }; } catch (e1) {
+      try { return { re: new RegExp(src, flags) }; } catch (e2) { return { error: 'Biểu thức chưa đúng: ' + String(e2.message).replace(/^Invalid regular expression: /, '') }; }
+    }
+  }
+  // Chỉ mở / hiện liên kết cho địa chỉ http, https, ftp, file.
+  const SAFE_URL_RE = /^(https?|ftp|file):/i;
+  function safeUrl(u) { return typeof u === 'string' && SAFE_URL_RE.test(u.trim()); }
   const SEARCH_BUDGET_MS = 1500;
   const nfc = s => String(s == null ? '' : s).normalize('NFC');
   /* Bộ so chữ cho một ô điều kiện. field: 'all' (tên, địa chỉ, nhãn) | 't' (tên) | 'u' (địa chỉ).
@@ -550,8 +559,9 @@
     if (q.regex) {
       const src = raw.trim();
       if (src.length > REGEX_MAX) return { error: 'Biểu thức dài quá ' + REGEX_MAX + ' ký tự.' };
-      let re;
-      try { re = new RegExp(nfc(src), q.caseSensitive ? 'u' : 'iu'); } catch (e) { return { error: 'Biểu thức chưa đúng: ' + e.message.replace(/^Invalid regular expression: /, '') }; }
+      const mk = makeRegex(nfc(src), q.caseSensitive ? '' : 'i');
+      if (mk.error) return { error: mk.error };
+      const re = mk.re;
       return { test: b => parts.some(i => { re.lastIndex = 0; return re.test(nfc(pick(b, i))); }) };
     }
     if (q.phrase) {
@@ -616,10 +626,9 @@
     const find = String(o.find == null ? '' : o.find).normalize('NFC');
     if (!find) return { ok: false, error: 'Nhập chữ cần tìm.' };
     if (o.regex && find.length > REGEX_MAX) return { ok: false, error: 'Biểu thức dài quá ' + REGEX_MAX + ' ký tự.' };
-    let re;
-    try {
-      re = new RegExp(o.regex ? find : find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g' + (o.caseSensitive ? '' : 'i') + 'u');
-    } catch (e) { return { ok: false, error: 'Biểu thức chưa đúng: ' + e.message.replace(/^Invalid regular expression: /, '') }; }
+    const mk = makeRegex(o.regex ? find : find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g' + (o.caseSensitive ? '' : 'i'));
+    if (mk.error) return { ok: false, error: mk.error };
+    const re = mk.re;
     const rep = String(o.replace == null ? '' : o.replace).normalize('NFC');
     const swap = s => (o.regex ? s.replace(re, rep) : s.replace(re, () => rep));
     const want = new Set(ids);
@@ -739,7 +748,7 @@
     if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) return { ok: false, error: 'Không đúng định dạng dữ liệu của Sổ Dấu Trang (thiếu số phiên bản dữ liệu).' };
     if (v > DATA_VERSION) return { ok: false, code: 'newer', error: 'Dữ liệu được tạo bởi bản mới hơn (dữ liệu v' + v + ', bản này đọc được tới v' + DATA_VERSION + '). Hãy cập nhật Sổ Dấu Trang.' };
     if (!Array.isArray(obj.folders) || !Array.isArray(obj.bookmarks)) return { ok: false, error: 'Không đúng định dạng dữ liệu của Sổ Dấu Trang (thiếu danh sách thư mục hoặc dấu trang).' };
-    let bad = 0;
+    let bad = 0, dropped = 0;
     const folders = [];
     const fseen = new Set();
     for (const f of obj.folders) {
@@ -761,7 +770,7 @@
         const fx = fixUrl(b.url);
         if (!fx.ok) { bad++; continue; }
         url = fx.url;
-      }
+      } else if (!SAFE_URL_RE.test(url)) { dropped++; continue; }   // kho bị chèn địa chỉ lạ (javascript:…): bỏ qua, không khóa app
       bseen.add(b.id);
       bookmarks.push({
         id: b.id,
@@ -781,7 +790,7 @@
       for (const [k, c] of Object.entries(obj.tagColors)) if (TAG_COLORS.includes(c)) tagColors[lower(k)] = c;
     }
     const data = migrate(fixRefs({ version: v, folders, bookmarks, tagColors }), v);
-    return { ok: true, data, fromVersion: v };
+    return { ok: true, data, fromVersion: v, dropped };
   }
   function fixRefs(data) {
     const ids = new Set(data.folders.map(f => f.id));
@@ -870,9 +879,47 @@
     }
     const deletes = [];
     for (const o of a.bookmarks) if (!seen.has(o.id)) deletes.push(o);
-    const foldersChanged = a.folders !== b.folders && JSON.stringify(a.folders) !== JSON.stringify(b.folders);
-    const tagColorsChanged = JSON.stringify(a.tagColors || {}) !== JSON.stringify(b.tagColors || {});
-    return { upserts, deletes, olds, folders: foldersChanged ? b.folders : null, tagColors: tagColorsChanged ? (b.tagColors || {}) : null };
+    // Thư mục, màu nhãn: ghi theo từng mục để không đè thay đổi của nơi khác.
+    let folderUpserts = [], folderDeletes = [];
+    if (a.folders !== b.folders) {
+      const fa = new Map(a.folders.map(f => [f.id, f]));
+      const fb = new Set();
+      for (const f of b.folders) { fb.add(f.id); const o = fa.get(f.id); if (!o || (o !== f && JSON.stringify(o) !== JSON.stringify(f))) folderUpserts.push(f); }
+      for (const f of a.folders) if (!fb.has(f.id)) folderDeletes.push(f.id);
+    }
+    const foldersChanged = folderUpserts.length > 0 || folderDeletes.length > 0;
+    const ca = a.tagColors || {}, cb = b.tagColors || {};
+    const tagColorSet = {};
+    for (const k of new Set(Object.keys(ca).concat(Object.keys(cb)))) if (ca[k] !== cb[k]) tagColorSet[k] = cb[k] === undefined ? null : cb[k];
+    const tagColorsChanged = Object.keys(tagColorSet).length > 0;
+    return { upserts, deletes, olds, folders: foldersChanged ? b.folders : null, folderUpserts, folderDeletes, tagColors: tagColorsChanged ? cb : null, tagColorSet };
+  }
+
+  // Hoàn tác: trả lại đúng các mục mà bước before → after đã đổi, trên dữ liệu hiện tại (giữ thay đổi của nơi khác).
+  function revertChanges(cur, before, after) {
+    const undo = (curList, bList, aList) => {
+      if (bList === aList) return curList;
+      const bMap = new Map(bList.map(x => [x.id, x])), aIds = new Set();
+      const restore = new Map(), remove = new Set();
+      for (const x of aList) { aIds.add(x.id); const o = bMap.get(x.id); if (o !== x) { if (o) restore.set(x.id, o); else remove.add(x.id); } }
+      for (const o of bList) if (!aIds.has(o.id)) restore.set(o.id, o);
+      if (!restore.size && !remove.size) return curList;
+      const out = [], seen = new Set();
+      for (const x of curList) {
+        if (remove.has(x.id)) continue;
+        if (restore.has(x.id)) { out.push(restore.get(x.id)); seen.add(x.id); } else out.push(x);
+      }
+      for (const [id, o] of restore) if (!seen.has(id)) out.push(o);
+      return out;
+    };
+    const tagColors = assign(cur.tagColors || {}, {});
+    const ca = before.tagColors || {}, cb = after.tagColors || {};
+    for (const k of new Set(Object.keys(ca).concat(Object.keys(cb)))) if (ca[k] !== cb[k]) { if (ca[k] === undefined) delete tagColors[k]; else tagColors[k] = ca[k]; }
+    return fixRefs(assign(cur, {
+      folders: undo(cur.folders, before.folders, after.folders),
+      bookmarks: undo(cur.bookmarks, before.bookmarks, after.bookmarks),
+      tagColors,
+    }));
   }
 
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -998,7 +1045,8 @@
       if (!(bOrd.get(p) >= b.order)) bOrd.set(p, b.order);
     }
     const map = new Map();
-    let foldersAdded = 0, added = 0, dup = 0;
+    let foldersAdded = 0, added = 0, dup = 0, dupInFile = 0;
+    const fromFile = new Map();             // thư mục → khóa địa chỉ thêm từ chính tệp này
     // thư mục theo thứ tự trong tệp: cha luôn đứng trước con
     for (const f of inc.folders) {
       const p = f.parentId ? map.get(f.parentId) : null;
@@ -1018,14 +1066,16 @@
       const fid = b.folderId ? map.get(b.folderId) : null;
       const pk = k(fid);
       if (!keys.has(pk)) keys.set(pk, new Set());
-      if (keys.get(pk).has(b.urlKey)) { dup++; continue; }
+      if (!fromFile.has(pk)) fromFile.set(pk, new Set());
+      if (keys.get(pk).has(b.urlKey)) { if (fromFile.get(pk).has(b.urlKey)) dupInFile++; else dup++; continue; }
       keys.get(pk).add(b.urlKey);
+      fromFile.get(pk).add(b.urlKey);
       const order = (bOrd.has(pk) ? bOrd.get(pk) : 0) + 1;
       bOrd.set(pk, order);
       bookmarks.push(assign(b, { folderId: fid, order }));
       added++;
     }
-    return { data: assign(cur, { folders, bookmarks }), added, dup, foldersAdded };
+    return { data: assign(cur, { folders, bookmarks }), added, dup, dupInFile, foldersAdded };
   }
   function exportHtml(data, ms) {
     const sec = t => Math.floor((Number.isFinite(t) ? t : ms) / 1000);
@@ -1073,7 +1123,7 @@
     placeItems, copyItems, findByUrl, addBookmark, updateBookmark, deleteBookmarks, restoreBookmarks, bulkAddTags, bulkMove, deleteItems,
     isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, bulkReplace, findDuplicates, resolveDuplicates, normalizeRange, hasDate, hasFilters, isSearching,
     sortBookmarks, foldedOf, search, listFolder, folderStats,
-    validateData, fixRefs, migrate, mergeData, diffData, exportFileName, exportPayload, localDay,
+    validateData, fixRefs, migrate, mergeData, diffData, revertChanges, safeUrl, exportFileName, exportPayload, localDay,
     exportHtmlFileName, isBookmarksHtml, decodeEntities, parseBookmarksHtml, mergeImported, exportHtml,
     formatDate, formatDateTime, dayToVN, monthToVN,
   };

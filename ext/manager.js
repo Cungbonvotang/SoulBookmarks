@@ -7,6 +7,7 @@
      pasteBackup?: bool   // thêm Chép / Dán dữ liệu ở màn Sao lưu
      keyTarget?           // nơi nghe phím tắt
      scroller?()          // phần tử cuộn danh sách (mặc định là trang)
+     state?: { load(), save(obj) }   // nhớ cách sắp xếp, chỗ đang xem, vị trí cuộn (2.6.0)
    } */
 (function (root) {
   'use strict';
@@ -74,11 +75,15 @@
       } catch (e) { toast('Không lưu được: ' + (e && e.message ? e.message : e), { error: true }); return false; }
       S.data = newData;
       if (opts.force) { S.readOnly = false; S.loadError = ''; S.rawBad = undefined; }
-      for (const [k, it] of [...S.selected]) if (!exists(it)) S.selected.delete(k);
+      if (S.selected.size) {
+        const fIds = new Set(S.data.folders.map(f => f.id)), bIds = new Set(S.data.bookmarks.map(b => b.id));
+        for (const [k, it] of [...S.selected]) if (!(it.kind === 'f' ? fIds.has(it.id) : bIds.has(it.id))) S.selected.delete(k);
+      }
       if (!['all', 'root'].includes(S.view) && !SDT.getFolder(S.data, S.view)) S.view = 'root';
       renderAll(opts.keepScroll !== false);
       if (opts.undo) {
-        toast(opts.undo, { action: 'Hoàn tác', onAction: async () => { if (await commit(prev, { keepScroll: true })) toast('Đã hoàn tác.'); } });
+        // Hoàn tác chỉ trả lại các mục bước này đã đổi; thay đổi của nơi khác (popup, tab khác) giữ nguyên.
+        toast(opts.undo, { action: 'Hoàn tác', onAction: async () => { if (await commit(SDT.revertChanges(S.data, prev, newData), { keepScroll: true })) toast('Đã hoàn tác.'); } });
       }
       return true;
     }
@@ -122,6 +127,7 @@
       walk(null, 0);
       if (!S.data.folders.length) list.append(h('p', { class: 'tempty' }, 'Chưa có thư mục. Bấm + để tạo.'));
       tree.append(list);
+      scheduleSave();
     }
 
     function goView(key) {
@@ -258,8 +264,8 @@
       const row = h('div', { class: 'row brow' + (sel ? ' sel' : '') + (isCut(it) ? ' cut' : ''), 'data-test': 'list-item', 'data-id': b.id, 'data-row': 'b', tabindex: '0' },
         lead,
         h('div', { class: 'rtext' },
-          h('a', { class: 'rtitle item-title', 'data-test': 'item-title', href: b.url, target: '_blank', rel: 'noopener noreferrer', title: b.url, draggable: 'false',
-            onclick: e => { if (S.selectMode) { e.preventDefault(); toggleSel(it, !sel); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
+          h('a', { class: 'rtitle item-title', 'data-test': 'item-title', href: SDT.safeUrl(b.url) ? b.url : null, target: '_blank', rel: 'noopener noreferrer', title: b.url, draggable: 'false',
+            onclick: e => { if (S.selectMode) { e.preventDefault(); toggleSel(it, !S.selected.has(keyOf(it))); return; } if (!SDT.safeUrl(b.url)) { e.preventDefault(); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
           h('div', { class: 'rmeta' },
             h('span', { class: 'dom', 'data-test': 'item-domain' }, SDT.domainOf(b.url)),
             h('span', { class: 'date', 'data-test': 'item-date' }, dateText)),
@@ -339,6 +345,7 @@
       renderBulk();
       updateFilterBadge();
       if (keepScroll) sc.scrollTop = top; else if (sc.scrollTop > 0 && !keepScroll) sc.scrollTop = 0;
+      scheduleSave();
     }
     function appendMore(n) {
       const list = $('list');
@@ -439,7 +446,7 @@
       if (!b) return;
       const it = { kind: 'b', id };
       contextMenu([
-        { label: 'Mở trong tab mới', icon: 'open', test: 'm-open', onSelect: () => (env.openUrl ? env.openUrl(b.url) : window.open(b.url, '_blank', 'noopener')) },
+        { label: 'Mở trong tab mới', icon: 'open', test: 'm-open', onSelect: () => { if (!SDT.safeUrl(b.url)) return; env.openUrl ? env.openUrl(b.url) : window.open(b.url, '_blank', 'noopener'); } },
         { label: 'Sửa', icon: 'edit', test: 'm-edit', onSelect: () => openEditor(id) },
         { label: 'Chép địa chỉ', icon: 'link', test: 'm-copyurl', onSelect: async () => toast((await copyText(b.url)) ? 'Đã chép địa chỉ.' : 'Không chép được.') },
         'sep',
@@ -493,9 +500,11 @@
       if (!r.ok) { toast(r.error, { error: true }); return; }
       const n = S.clip.mode === 'cut' ? r.moved : r.copied;
       const skipped = r.skipped || 0;
-      if (S.clip.mode === 'cut') S.clip = null;
-      if (!n) { toast('Không còn mục nào để dán.', { error: true }); renderList(true); return; }
-      await commit(r.data, { undo: 'Đã dán ' + n + ' mục' + (skipped ? ' (bỏ qua ' + skipped + ' mục không còn)' : '') + '.' });
+      const wasCut = S.clip.mode === 'cut';
+      if (!n) { if (wasCut) S.clip = null; toast('Không còn mục nào để dán.', { error: true }); renderList(true); return; }
+      const clip = S.clip;
+      if (wasCut) S.clip = null;                     // để danh sách vẽ lại không còn mờ "đã cắt"
+      if (!(await commit(r.data, { undo: 'Đã dán ' + n + ' mục' + (skipped ? ' (bỏ qua ' + skipped + ' mục không còn)' : '') + '.' })) && wasCut) { S.clip = clip; renderList(true); }
     }
 
     /* ---------- thư mục ---------- */
@@ -626,8 +635,8 @@
             return h('article', { class: 'ditem' + (kept ? ' kept' : ''), 'data-test': 'dup-item', 'data-id': b.id },
               h('label', { class: 'dkeep' }, cb, h('span', {}, kept ? 'Giữ' : 'Xóa')),
               h('div', { class: 'dbody' },
-                h('a', { class: 'df dt' + (dTitle ? ' diff' : ''), 'data-test': 'dup-open', href: b.url, target: '_blank', rel: 'noopener noreferrer',
-                  onclick: e => { if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
+                h('a', { class: 'df dt' + (dTitle ? ' diff' : ''), 'data-test': 'dup-open', href: SDT.safeUrl(b.url) ? b.url : null, target: '_blank', rel: 'noopener noreferrer',
+                  onclick: e => { if (!SDT.safeUrl(b.url)) { e.preventDefault(); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
                 field('du', 'dup-url', b.url, dUrl),
                 field('dp', 'dup-folder', '📁 ' + SDT.folderLabel(S.data, b.folderId), dFolder),
                 h('div', { class: 'df dtags' + (dTags ? ' diff' : '') }, ...(b.tags.length ? b.tags.map(t => h('span', { class: 'tag ' + tagClass(S.data, t) }, t)) : [h('span', { class: 'muted' }, 'Không có nhãn')])),
@@ -1161,8 +1170,9 @@
       }
       if (S.readOnly) { show('Dữ liệu đang lỗi nên không gộp được. Hãy chọn “Thay thế toàn bộ”.', true); return; }
       const m = SDT.mergeImported(S.data, r.data);
-      if (!m.added && !m.foldersAdded) { show('Đã gộp: thêm 0 dấu trang, bỏ qua ' + m.dup + ' đã có; thêm 0 thư mục.' + skipMsg); return; }
-      if (await commit(m.data)) show('Đã gộp: thêm ' + m.added + ' dấu trang, bỏ qua ' + m.dup + ' đã có; thêm ' + m.foldersAdded + ' thư mục.' + skipMsg);
+      const inFile = m.dupInFile ? ' Bỏ ' + m.dupInFile + ' mục trùng nhau ngay trong tệp.' : '';
+      if (!m.added && !m.foldersAdded) { show('Đã gộp: thêm 0 dấu trang, bỏ qua ' + m.dup + ' đã có; thêm 0 thư mục.' + inFile + skipMsg); return; }
+      if (await commit(m.data)) show('Đã gộp: thêm ' + m.added + ' dấu trang, bỏ qua ' + m.dup + ' đã có; thêm ' + m.foldersAdded + ' thư mục.' + inFile + skipMsg);
     }
 
     function openMore() {
@@ -1176,6 +1186,73 @@
         { label: 'Nhãn và màu nhãn', icon: 'tag', test: 'menu-tags', onSelect: openTags },
         { label: 'Sao lưu: xuất / nhập', icon: 'paste', test: 'menu-backup', onSelect: openBackup },
       ], null, 'Sổ Dấu Trang');
+    }
+
+    /* ---------- nhớ cách sắp xếp, chỗ đang xem, vị trí cuộn (2.6.0) ---------- */
+    const ST = env.state || null;
+    let stateReady = false, stateTimer = 0;
+    const SORTS_F = ['manual', 'created', 'updated', 'az', 'za'], SORTS_L = ['created', 'updated', 'az', 'za'];
+    function scTopY() {
+      const sc = scroller();
+      const own = sc === document.scrollingElement || sc === document.documentElement || sc === document.body;
+      const top = own ? 0 : sc.getBoundingClientRect().top;
+      const bar = container.querySelector('.topbar');
+      return { sc, top, edge: Math.max(top, bar ? bar.getBoundingClientRect().bottom : top) };
+    }
+    function snapshotAnchor() {
+      if (searching()) return S.lastAnchor || null;            // đang tìm: giữ chỗ cũ của thư mục
+      const { top, edge } = scTopY();
+      const rows = $('list').querySelectorAll('[data-row]');
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i].getBoundingClientRect();
+        if (r.height && r.bottom > edge + 1) {
+          const a = { view: S.view, kind: rows[i].getAttribute('data-row'), id: rows[i].getAttribute('data-id'), idx: i, dy: Math.round(r.top - top) };
+          S.lastAnchor = a;
+          return a;
+        }
+      }
+      return S.lastAnchor && S.lastAnchor.view === S.view ? S.lastAnchor : null;
+    }
+    function saveState() {
+      clearTimeout(stateTimer); stateTimer = 0;
+      if (!ST || !stateReady || container.offsetParent === null && !container.getClientRects().length) return;
+      try {
+        ST.save({ v: 1, view: S.view, chain: ['all', 'root'].includes(S.view) ? [] : SDT.folderChain(S.data, S.view).map(f => f.id),
+          sortFolder: S.sortFolder, sortFlat: S.sortFlat, expanded: [...S.expanded], anchor: snapshotAnchor() });
+      } catch (e) { /* bỏ qua */ }
+    }
+    function scheduleSave() { if (!ST || !stateReady) return; clearTimeout(stateTimer); stateTimer = setTimeout(saveState, 300); }
+    function readState() { if (!ST) return null; try { const o = ST.load(); return o && typeof o === 'object' ? o : null; } catch (e) { return null; } }
+    // Áp trạng thái đã nhớ: thư mục đã mất → thư mục cha gần nhất còn lại, không thì "Dấu trang".
+    function applyState(st) {
+      if (!st) return null;
+      if (SORTS_F.includes(st.sortFolder)) S.sortFolder = st.sortFolder;
+      if (SORTS_L.includes(st.sortFlat)) S.sortFlat = st.sortFlat;
+      if (Array.isArray(st.expanded)) S.expanded = new Set(st.expanded.filter(id => SDT.getFolder(S.data, id)));
+      let view = 'root';
+      if (st.view === 'all' || st.view === 'root') view = st.view;
+      else if (typeof st.view === 'string' && SDT.getFolder(S.data, st.view)) view = st.view;
+      else if (Array.isArray(st.chain)) { for (let i = st.chain.length - 1; i >= 0; i--) if (SDT.getFolder(S.data, st.chain[i])) { view = st.chain[i]; break; } }
+      S.view = view;
+      return st.anchor && st.anchor.view === view ? st.anchor : null;
+    }
+    function restoreAnchor(a) {
+      if (!a || !S.entries.length) return;
+      let idx = S.entries.findIndex(e => e.kind === a.kind && e.item.id === a.id);
+      if (idx < 0) idx = Math.min(Number(a.idx) || 0, S.entries.length - 1);     // mục đã mất: vị trí gần nhất
+      if (S.shown <= idx) appendMore(idx + 1 - S.shown + PAGE);
+      const e = S.entries[idx];
+      const row = $('list').querySelector('[data-row="' + e.kind + '"][data-id="' + CSS.escape(e.item.id) + '"]');
+      if (!row) return;
+      const { sc, top } = scTopY();
+      sc.scrollTop += row.getBoundingClientRect().top - top - (Number(a.dy) || 0);
+      S.lastAnchor = { view: S.view, kind: e.kind, id: e.item.id, idx, dy: Number(a.dy) || 0 };
+    }
+    async function reopen() {
+      const st = readState();
+      await reload();
+      const a = applyState(st);
+      if (st) { renderAll(false); restoreAnchor(a); }
     }
 
     /* ---------- phím tắt ---------- */
@@ -1244,7 +1321,7 @@
       return true;
     }
     async function reload(info) {
-      if (info && info.keys && !S.readOnly && root.SDTStorage) {
+      if (info && info.keys && !info.keys.includes('sdt_error') && !S.readOnly && root.SDTStorage) {
         try {
           if (await reloadPartial(info.keys)) {
             if (!['all', 'root'].includes(S.view) && !SDT.getFolder(S.data, S.view)) S.view = 'root';
@@ -1265,7 +1342,15 @@
       const res = await store.loadAll();
       if (res.ok) S.data = res.data;
       else { S.readOnly = true; S.loadError = res.error; S.rawBad = res.raw; S.data = SDT.emptyData(); }
+      const anchor = res.ok ? applyState(readState()) : null;
       renderAll(false);
+      restoreAnchor(anchor);
+      stateReady = true;
+      const scEl = env.scroller ? env.scroller() : window;
+      scEl.addEventListener('scroll', scheduleSave, { passive: true });
+      window.addEventListener('pagehide', saveState);
+      document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+      if (res.ok && res.dropped) toast('Bỏ qua ' + res.dropped + ' mục có địa chỉ không hợp lệ trong dữ liệu.', { error: true });
       container.classList.add('ready');
       if (!window.__sdtReady) window.__sdtReady = performance.now();
       warmSearch();
@@ -1283,7 +1368,7 @@
       idle(step);
     }
     const ready = start();
-    return { reload, setDrawer, ready };
+    return { reload, reopen, saveState, setDrawer, ready };
   }
 
   root.SDTManager = { mount };
