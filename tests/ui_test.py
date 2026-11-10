@@ -74,6 +74,13 @@ def open_popup(ctx, eid, tid):
     pg.goto(f'chrome-extension://{eid}/popup.html?tabId={tid}')
     pg.wait_for_selector('[data-test="popup-status"]'); W(pg, 150)
     return pg
+def ro(pg):
+    """Điện thoại (2.7.0): bật "Sắp xếp lại" để tay nắm hiện ra."""
+    b = pg.locator('[data-test="btn-reorder"]')
+    if b.count() and b.is_visible() and b.get_attribute('aria-pressed') != 'true':
+        b.click(); pg.wait_for_timeout(200)
+
+
 def is_drawer_open(pg): return pg.evaluate("document.body.classList.contains('drawer-open')")
 def drawer(pg):
     if T(pg, 'btn-drawer').is_visible() and not is_drawer_open(pg): T(pg, 'btn-drawer').click(); W(pg, 250)
@@ -280,13 +287,14 @@ with sync_playwright() as p:
     ok('CT-34 sắp xếp', orders['manual'] == ['b1', 'b3', 'b4', 'b5'] and orders['az'] == ['b3', 'b4', 'b5', 'b1'] and orders['za'] == ['b1', 'b5', 'b4', 'b3'] and orders['created'] == ['b5', 'b1', 'b4', 'b3'], orders)
     # CT-64 kéo đổi chỗ
     up_before = bid(pr.data(), 'b4')['updatedAt']
+    ro(M)
     first_box = item_id(M, 'b1').bounding_box()
     drag(M, item_id(M, 'b4').locator('[data-test="row-handle"]'), first_box['x'] + 100, first_box['y'] + 6)
     after = ids(M)
     M.reload(); M.wait_for_selector('body.ready'); go_path(M, ['gt', 'an', 'co'])
     after_reload = ids(M)
     keep_time = bid(pr.data(), 'b4')['updatedAt'] == up_before
-    go_root(M)
+    go_root(M); ro(M)
     ht_box = M.locator('[data-test="list-folder"][data-id="cv"]').bounding_box()
     drag(M, M.locator('[data-test="list-folder"][data-id="ht"] [data-test="row-handle"]'), ht_box['x'] + 100, ht_box['y'] + 4)
     f_after = ids(M, 'list-folder')
@@ -295,7 +303,7 @@ with sync_playwright() as p:
     ok('CT-64 kéo đổi chỗ, giữ sau tải lại, hoàn tác', after == ['b4', 'b1', 'b3', 'b5'] and after_reload == after and keep_time and f_after[:3] == ['ht', 'cv', 'gt'] and f_undo[:3] == ['cv', 'gt', 'ht'],
        [after, after_reload, keep_time, f_after, f_undo])
     # CT-65 thả vào thư mục, chặn thư mục vào con, Esc, tự cuộn
-    go_path(M, ['gt', 'an'])
+    go_path(M, ['gt', 'an']); ro(M)
     co_box = M.locator('[data-test="list-folder"][data-id="co"]').bounding_box()
     t0 = bid(pr.data(), 'b8')['updatedAt']
     drag(M, item_id(M, 'b8').locator('[data-test="row-handle"]'), co_box['x'] + 120, co_box['y'] + co_box['height'] / 2)
@@ -303,7 +311,7 @@ with sync_playwright() as p:
     into_ok = b8['folderId'] == 'co' and b8['updatedAt'] > t0
     open_list_folder(M, 'co'); last_is_b8 = ids(M)[-1] == 'b8'
     # Esc
-    before = ids(M)
+    before = ids(M); ro(M)
     h = item_id(M, before[-1]).locator('[data-test="row-handle"]'); bb = h.bounding_box(); fb = item_id(M, before[0]).bounding_box()
     M.mouse.move(bb['x'] + 10, bb['y'] + 10); M.mouse.down(); M.mouse.move(fb['x'] + 100, fb['y'] + 5, steps=8); M.keyboard.press('Escape'); M.mouse.up(); W(M, 300)
     esc_ok = ids(M) == before
@@ -324,7 +332,7 @@ with sync_playwright() as p:
     for i in range(70):
         long['bookmarks'].append({'id': f'L{i}', 'title': f'Dòng dài {i}', 'url': f'https://dai.vn/{i}', 'folderId': 'tr' if False else fold(long, 'Trống')['id'], 'tags': [], 'createdAt': ms(2026, 7, 1) + i, 'updatedAt': ms(2026, 7, 1) + i, 'order': i})
     pr.seed(long); W(M, 600)
-    go_root(M); open_list_folder(M, fold(long, 'Trống')['id'])
+    go_root(M); open_list_folder(M, fold(long, 'Trống')['id']); ro(M)
     sc0 = M.evaluate("document.scrollingElement.scrollTop")
     hh = item_id(M, 'L1').locator('[data-test="row-handle"]'); hb = hh.bounding_box()
     M.mouse.move(hb['x'] + 10, hb['y'] + 10); M.mouse.down(); M.mouse.move(hb['x'] + 10, 835, steps=10); W(M, 1200)

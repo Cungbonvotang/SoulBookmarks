@@ -57,6 +57,8 @@
       q: SDT.defaultQuery(),
       sortFolder: 'manual', sortFlat: 'created',
       selectMode: false, selected: new Map(),
+      dense: false,                 // kiểu xem Gọn (được nhớ)
+      reorder: false,               // điện thoại: đang hiện tay nắm để xếp lại
       clip: null,                   // { mode: 'cut'|'copy', items: [{kind,id}] }
       expanded: new Set(),
       notice: '',
@@ -103,7 +105,7 @@
     function renderTree() {
       const tree = $('tree');
       tree.textContent = '';
-      const stats = SDT.folderStats(S.data);
+      const stats = SDT.folderTotals(S.data);
       const rootCount = S.data.bookmarks.filter(b => !b.folderId).length + S.data.folders.filter(f => !f.parentId).length;
       const fixed = (key, label, count, test, ic) => h('div', { class: 'trow' + (S.view === key ? ' active' : ''), 'data-drop': key === 'root' ? '' : null },
         h('button', { type: 'button', class: 'tbtn', 'data-test': test, 'aria-current': S.view === key ? 'true' : null, onclick: () => goView(key) },
@@ -125,7 +127,7 @@
             kids ? h('button', { type: 'button', class: 'caret' + (open ? ' open' : ''), 'data-test': 'folder-caret', 'aria-label': open ? 'Thu gọn ' + f.name : 'Mở ' + f.name,
               onclick: () => { open ? S.expanded.delete(f.id) : S.expanded.add(f.id); renderTree(); } }, icon('chevron')) : h('span', { class: 'caret-sp' }),
             h('button', { type: 'button', class: 'tbtn', 'data-test': 'folder-open', 'aria-current': S.view === f.id ? 'true' : null, onclick: () => goView(f.id) },
-              icon('folder', 'tic fic'), h('span', { class: 'tname', 'data-test': 'folder-name' }, f.name), h('span', { class: 'tcount' }, String(stats.get(f.id) || 0))),
+              icon('folder', 'tic fic'), h('span', { class: 'tname', 'data-test': 'folder-name' }, f.name), h('span', { class: 'tcount', 'data-test': 'folder-count', title: 'Số dấu trang, tính cả thư mục con' }, String(stats.get(f.id) || 0))),
             h('button', { type: 'button', class: 'icon-btn small tmenu', 'data-test': 'folder-menu', 'aria-label': 'Tùy chọn thư mục ' + f.name, onclick: e => folderMenu(f.id, null, e) }, icon('more'))));
           if (kids && open) walk(f.id, depth + 1);
         }
@@ -140,6 +142,7 @@
       S.view = key;
       S.selected.clear();
       S.selectMode = false;
+      S.reorder = false;
       if (SDT.isSearching(S.q) && key !== 'all') S.q.scope = 'folder';
       setDrawer(false);
       renderAll(false);
@@ -208,19 +211,28 @@
         crumbs.append(icon('chevron', 'crumb-sep'));
         head.append(crumbs);
       }
+      container.classList.toggle('dense', S.dense);
       const title = searching() ? 'Kết quả' : S.view === 'all' ? 'Tất cả dấu trang' : S.view === 'root' ? SDT.ROOT_NAME : (SDT.getFolder(S.data, fid) || {}).name;
       const countText = searching() ? counts.b + ' kết quả' : folderView() ? (counts.f ? counts.f + ' thư mục · ' : '') + counts.b + ' dấu trang' : counts.b + ' dấu trang';
-      head.append(h('div', { class: 'lh-row' }, h('h1', { class: 'lh-title', 'data-test': 'view-title' }, title), h('span', { class: 'lh-count', 'data-test': 'list-count' }, countText)));
+      head.append(h('div', { class: 'lh-row' }, h('h1', { class: 'lh-title', 'data-test': 'view-title' }, title), h('span', { class: 'lh-count', 'data-test': 'list-count' }, countText),
+        h('button', { type: 'button', class: 'pill dense-pill' + (S.dense ? ' on' : ''), 'data-test': 'btn-dense', 'aria-pressed': String(S.dense), 'aria-label': 'Xem gọn', title: S.dense ? 'Đang xem gọn. Bấm để xem thoáng.' : 'Xem gọn',
+          onclick: () => { S.dense = !S.dense; renderList(true); } }, icon('rows'))));
       const sort = h('select', { 'data-test': 'sort-select', 'aria-label': 'Sắp xếp', class: 'sort' },
         folderView() ? h('option', { value: 'manual' }, 'Tự xếp') : null,
         h('option', { value: 'created' }, 'Mới lưu trước'), h('option', { value: 'updated' }, 'Mới cập nhật trước'),
         h('option', { value: 'az' }, 'Tên A–Z'), h('option', { value: 'za' }, 'Tên Z–A'));
       sort.value = curSort();
       sort.addEventListener('change', () => { if (folderView()) S.sortFolder = sort.value; else S.sortFlat = sort.value; renderList(); });
+      // Điện thoại: tay nắm chỉ hiện khi bật "Sắp xếp lại" (CSS ẩn nút này trên máy tính).
+      const canReorder = folderView() && curSort() === 'manual' && !S.selectMode && !S.readOnly && S.entries.length > 1;
+      if (!canReorder) S.reorder = false;
+      container.classList.toggle('reordering', S.reorder);
       head.append(h('div', { class: 'lh-row tools' },
         h('label', { class: 'pill sortpill' }, icon('sort'), sort),
         h('button', { type: 'button', class: 'pill' + (S.selectMode ? ' on' : ''), 'data-test': 'btn-select-mode', 'aria-pressed': String(S.selectMode),
           onclick: () => { S.selectMode = !S.selectMode; S.selected.clear(); renderList(); } }, S.selectMode ? 'Xong' : 'Chọn nhiều'),
+        canReorder ? h('button', { type: 'button', class: 'pill reorder-pill' + (S.reorder ? ' on' : ''), 'data-test': 'btn-reorder', 'aria-pressed': String(S.reorder),
+          onclick: () => { S.reorder = !S.reorder; renderList(true); } }, icon('grip'), S.reorder ? 'Xong' : 'Sắp xếp lại') : null,
         S.clip && canPasteHere() ? h('button', { type: 'button', class: 'pill accent', 'data-test': 'btn-paste-here', onclick: () => pasteInto(fid, 'end') },
           icon('paste'), 'Dán ' + S.clip.items.length + ' mục vào đây') : null));
       const chips = conditionChips();
@@ -243,6 +255,7 @@
     function folderRow(f, stats) {
       const it = { kind: 'f', id: f.id };
       const sel = S.selected.has(keyOf(it));
+      const kids = S.kids ? (S.kids.get(f.id) || []).length : 0;
       const lead = S.selectMode
         ? h('input', { type: 'checkbox', class: 'row-check', 'data-test': 'item-check', checked: sel, 'aria-label': 'Chọn ' + f.name, onchange: e => toggleSel(it, e.target.checked) })
         : h('span', { class: 'ico fico' }, icon('folder'));
@@ -250,9 +263,9 @@
         lead,
         h('div', { class: 'rtext' },
           h('div', { class: 'rtitle', 'data-test': 'folder-row-name' }, f.name),
-          h('div', { class: 'rmeta' }, (stats.get(f.id) || 0) + ' mục')),
+          h('div', { class: 'rmeta', 'data-test': 'folder-row-meta' }, (stats.get(f.id) || 0) + ' dấu trang' + (kids ? ' · ' + kids + ' thư mục con' : ''))),
         h('div', { class: 'racts' },
-          h('button', { type: 'button', class: 'icon-btn', 'data-test': 'row-menu', 'aria-label': 'Tùy chọn ' + f.name, onclick: e => { e.stopPropagation(); folderMenu(f.id, row, e); } }, icon('more')),
+          h('button', { type: 'button', class: 'icon-btn rmenu', 'data-test': 'row-menu', 'aria-label': 'Tùy chọn ' + f.name, onclick: e => { e.stopPropagation(); folderMenu(f.id, row, e); } }, icon('more')),
           handle(it)));
       row.addEventListener('click', e => {
         if (e.target.closest('button,input,a')) return;
@@ -276,18 +289,18 @@
         lead,
         h('div', { class: 'rtext' },
           h('a', { class: 'rtitle item-title', 'data-test': 'item-title', href: SDT.safeUrl(b.url) ? b.url : null, target: '_blank', rel: 'noopener noreferrer', title: b.url, draggable: 'false',
-            onclick: e => { if (S.selectMode) { e.preventDefault(); toggleSel(it, !S.selected.has(keyOf(it))); return; } if (!SDT.safeUrl(b.url)) { e.preventDefault(); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, b.title),
+            onclick: e => { if (S.selectMode) { e.preventDefault(); toggleSel(it, !S.selected.has(keyOf(it))); return; } if (!SDT.safeUrl(b.url)) { e.preventDefault(); return; } if (env.openUrl) { e.preventDefault(); env.openUrl(b.url); } } }, hl(b.title, 't')),
           h('div', { class: 'rmeta' },
-            h('span', { class: 'dom', 'data-test': 'item-domain' }, SDT.domainOf(b.url)),
+            h('span', { class: 'dom', 'data-test': 'item-domain' }, hl(SDT.domainOf(b.url), 'u')),
             h('span', { class: 'date', 'data-test': 'item-date' }, dateText)),
-          showPath ? h('button', { type: 'button', class: 'rpath', 'data-test': 'item-path', onclick: () => { clearAllFilters(); goView(b.folderId || 'root'); } },
+          showPath ? h('button', { type: 'button', class: 'rpath', 'data-test': 'item-path', onclick: () => { clearAllFilters(); goView(b.folderId || 'root'); revealItem(it); } },
             icon('folder'), SDT.folderLabel(S.data, b.folderId)) : null,
           b.tags.length ? h('div', { class: 'rtags' }, b.tags.map(t => h('button', {
             type: 'button', class: 'tag ' + tagClass(S.data, t), 'data-test': 'item-tag', 'data-tag': t, title: 'Lọc theo nhãn ' + t,
             onclick: () => { if (!S.q.tags.some(x => x.toLowerCase() === t.toLowerCase())) S.q.tags = S.q.tags.concat([t]); S.notice = ''; renderAll(false); },
           }, t))) : null),
         h('div', { class: 'racts' },
-          h('button', { type: 'button', class: 'icon-btn', 'data-test': 'row-menu', 'aria-label': 'Tùy chọn ' + b.title, onclick: e => { e.stopPropagation(); bookmarkMenu(b.id, row, e); } }, icon('more')),
+          h('button', { type: 'button', class: 'icon-btn rmenu', 'data-test': 'row-menu', 'aria-label': 'Tùy chọn ' + b.title, onclick: e => { e.stopPropagation(); bookmarkMenu(b.id, row, e); } }, icon('more')),
           handle(it)));
       row.addEventListener('click', e => {
         if (!S.selectMode || e.target.closest('button,input,a')) return;
@@ -295,6 +308,27 @@
       });
       row.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); bookmarkMenu(b.id, row, e); });
       return row;
+    }
+    // Tô phần chữ khớp điều kiện tìm (tên: 't', tên miền: 'u').
+    function hl(text, field) {
+      if (!S.hlOn) return text;
+      const rs = SDT.highlightRanges(text, field, S.q);
+      if (!rs.length) return text;
+      const out = []; let at = 0;
+      for (const [a, b] of rs) { if (a > at) out.push(text.slice(at, a)); out.push(h('mark', { class: 'hl', 'data-test': 'hl' }, text.slice(a, b))); at = b; }
+      if (at < text.length) out.push(text.slice(at));
+      return out;
+    }
+    // Cuộn tới một mục trong danh sách đang hiện và làm nổi nó trong chốc lát.
+    function revealItem(it) {
+      const idx = S.entries.findIndex(e => e.kind === it.kind && e.item.id === it.id);
+      if (idx < 0) return;
+      if (S.shown <= idx) appendMore(idx + 1 - S.shown + 10);
+      const row = $('list').querySelector('[data-row="' + it.kind + '"][data-id="' + CSS.escape(it.id) + '"]');
+      if (!row) return;
+      row.scrollIntoView({ block: 'center' });
+      row.classList.add('flash');
+      setTimeout(() => row.classList.remove('flash'), 2400);
     }
     function handle(it) {
       if (!folderView() || curSort() !== 'manual' || S.selectMode || S.readOnly) return null;
@@ -332,7 +366,9 @@
       const list = $('list');
       list.textContent = '';
       if (S.observer) { S.observer.disconnect(); S.observer = null; }
-      S.stats = folderView() ? SDT.folderStats(S.data) : new Map();
+      S.stats = folderView() ? SDT.folderTotals(S.data) : new Map();
+      S.kids = folderView() ? SDT.childMap(S.data) : null;
+      S.hlOn = searching() && !S.searchError && !!(String(S.q.text || '').trim() || String(S.q.title || '').trim() || String(S.q.urlText || '').trim());
       if (!S.data.bookmarks.length && !S.data.folders.length) {
         list.append(h('div', { class: 'empty', 'data-test': 'empty-state' }, h('p', { class: 'empty-t' }, 'Chưa có dấu trang nào'),
           h('p', {}, 'Khi đang xem một trang web, bấm biểu tượng Sổ Dấu Trang để lưu trang đó. Hoặc bấm + để thêm bằng tay.')));
@@ -1240,7 +1276,7 @@
       if (!ST || !stateReady || container.offsetParent === null && !container.getClientRects().length) return;
       try {
         ST.save({ v: 1, view: S.view, chain: ['all', 'root'].includes(S.view) ? [] : SDT.folderChain(S.data, S.view).map(f => f.id),
-          sortFolder: S.sortFolder, sortFlat: S.sortFlat, expanded: [...S.expanded], anchor: snapshotAnchor() });
+          sortFolder: S.sortFolder, sortFlat: S.sortFlat, dense: S.dense, expanded: [...S.expanded], anchor: snapshotAnchor() });
       } catch (e) { /* bỏ qua */ }
     }
     function scheduleSave() { if (!ST || !stateReady) return; clearTimeout(stateTimer); stateTimer = setTimeout(saveState, 300); }
@@ -1250,6 +1286,7 @@
       if (!st) return null;
       if (SORTS_F.includes(st.sortFolder)) S.sortFolder = st.sortFolder;
       if (SORTS_L.includes(st.sortFlat)) S.sortFlat = st.sortFlat;
+      S.dense = st.dense === true;
       if (Array.isArray(st.expanded)) S.expanded = new Set(st.expanded.filter(id => SDT.getFolder(S.data, id)));
       let view = 'root';
       if (st.view === 'all' || st.view === 'root') view = st.view;

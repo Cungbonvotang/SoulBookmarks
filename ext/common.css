@@ -18,6 +18,7 @@
   --folder: #E89B2A;
   --folder-soft: #FEF4E2;
   --focus: #3D6BE0;
+  --hl: #FFE49A;
   --shadow-1: 0 1px 2px rgba(20, 30, 60, .06);
   --shadow-2: 0 10px 34px rgba(20, 30, 60, .18);
   --font: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -39,7 +40,7 @@
     --bg: #12151C; --surface: #1B202A; --side: #161A22; --field: #232937; --hover: #232A37;
     --ink: #E7EAF1; --muted: #98A2B3; --faint: #6B7586; --line: #2A3140;
     --accent: #7D9BF7; --accent-ink: #0F1420; --accent-soft: #232D45; --accent-strong: #9DB4FA;
-    --ribbon: #FF6B70; --ribbon-soft: #3A2226; --folder: #F5B75A; --folder-soft: #3A2F1C; --focus: #9DB4FA;
+    --ribbon: #FF6B70; --ribbon-soft: #3A2226; --folder: #F5B75A; --folder-soft: #3A2F1C; --focus: #9DB4FA; --hl: #6A5413;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, .3); --shadow-2: 0 12px 36px rgba(0, 0, 0, .55);
     --tc-blue-bg: #24304D; --tc-blue-fg: #9DB4FA;
     --tc-green-bg: #1E3527; --tc-green-fg: #7ED3A0;
@@ -170,7 +171,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); out
 .menu-item .ic { color: var(--muted); }
 .menu-item:hover, .menu-item:focus-visible { background: var(--hover); }
 .menu-item:disabled { opacity: .4; }
-.menu-hint { margin-left: auto; font-size: 12px; color: var(--faint); }
+.menu-hint { margin-left: auto; font-size: 12px; color: var(--muted); }
 .menu-sep { height: 1px; background: var(--line); margin: 6px 12px; }
 .dlg.cmenu .dlg-body { padding: 4px 12px 8px; }
 .dlg.cmenu.at { width: 260px; border-radius: 14px; }

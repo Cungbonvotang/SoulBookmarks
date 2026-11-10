@@ -732,6 +732,61 @@
     const bookmarks = sortBookmarks(data.bookmarks.filter(b => (b.folderId || null) === fid), sort);
     return { folders, bookmarks };
   }
+  // Tổng số dấu trang nằm trong mỗi thư mục, tính cả thư mục con (2.7.0).
+  function folderTotals(data) {
+    const m = new Map(), parent = new Map();
+    for (const f of data.folders) { m.set(f.id, 0); parent.set(f.id, f.parentId || null); }
+    const direct = new Map();
+    for (const b of data.bookmarks) if (b.folderId && m.has(b.folderId)) direct.set(b.folderId, (direct.get(b.folderId) || 0) + 1);
+    for (const [id, n] of direct) {
+      let cur = id, guard = 0;
+      while (cur && m.has(cur) && guard++ < 500) { m.set(cur, m.get(cur) + n); cur = parent.get(cur); }
+    }
+    return m;
+  }
+  /* Vùng chữ khớp trong một chuỗi đang hiện trên dòng, để tô (2.7.0).
+     field: 't' (tên) | 'u' (địa chỉ, tên miền). Trả về [[đầu, cuối), …] theo vị trí trong chuỗi gốc, đã gộp vùng chồng nhau. */
+  const HL_MAX_LEN = 600, HL_MAX_HITS = 40;
+  function highlightRanges(str, field, query) {
+    const s = String(str == null ? '' : str);
+    const q = assign(defaultQuery(), query || {});
+    const inputs = [q.text, field === 't' ? q.title : q.urlText].map(x => String(x == null ? '' : x)).filter(x => x.trim());
+    if (!s || s.length > HL_MAX_LEN || !inputs.length) return [];
+    // Đổi từng cụm (chữ + dấu rời đi kèm) rồi nhớ cụm đó nằm ở đâu trong chuỗi gốc.
+    const tr = q.regex || q.phrase ? (q.caseSensitive || q.regex ? nfc : c => nfc(c).toLowerCase()) : (q.caseSensitive ? foldKeepCase : fold);
+    let T = ''; const st = [], en = [];
+    for (let i = 0; i < s.length;) {
+      let j = i + 1;
+      if (s.charCodeAt(i) >= 0xD800 && s.charCodeAt(i) <= 0xDBFF && j < s.length) j++;
+      while (j < s.length && s.charCodeAt(j) >= 0x300 && s.charCodeAt(j) <= 0x36F) j++;
+      const t = tr(s.slice(i, j));
+      for (let k = 0; k < t.length; k++) { st.push(i); en.push(j); }
+      T += t; i = j;
+    }
+    const hits = [];
+    const add = (a, b) => { if (b > a && hits.length < HL_MAX_HITS) hits.push([st[a], en[b - 1]]); };
+    const findAll = needle => { if (!needle) return; for (let at = T.indexOf(needle); at >= 0 && hits.length < HL_MAX_HITS; at = T.indexOf(needle, at + needle.length)) add(at, at + needle.length); };
+    for (const raw of inputs) {
+      if (q.regex) {
+        const src = raw.trim();
+        if (src.length > REGEX_MAX) continue;
+        const mk = makeRegex(nfc(src), q.caseSensitive ? 'g' : 'gi');
+        if (mk.error) continue;
+        let m, guard = 0;
+        mk.re.lastIndex = 0;
+        while ((m = mk.re.exec(T)) && guard++ < HL_MAX_HITS) { if (m[0].length) add(m.index, m.index + m[0].length); else mk.re.lastIndex++; }
+      } else if (q.phrase) {
+        const needle = squash(nfc(raw));
+        findAll(q.caseSensitive ? needle : needle.toLowerCase());
+      } else {
+        for (const tok of (q.caseSensitive ? foldKeepCase(raw).split(/\s+/).filter(Boolean) : tokens(raw))) findAll(tok);
+      }
+    }
+    hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const out = [];
+    for (const h of hits) { const last = out[out.length - 1]; if (last && h[0] <= last[1]) last[1] = Math.max(last[1], h[1]); else out.push([h[0], h[1]]); }
+    return out;
+  }
   function folderStats(data) {
     // Số mục trực tiếp (thư mục con + dấu trang) của mỗi thư mục.
     const m = new Map();
@@ -1129,7 +1184,7 @@
     validateFolderName, uniqueName, addFolder, renameFolder, moveFolder, folderContent, deleteFolder,
     placeItems, copyItems, findByUrl, addBookmark, updateBookmark, deleteBookmarks, restoreBookmarks, bulkAddTags, bulkMove, deleteItems,
     isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, bulkReplace, findDuplicates, resolveDuplicates, normalizeRange, hasDate, hasFilters, isSearching,
-    sortBookmarks, foldedOf, search, listFolder, folderStats,
+    sortBookmarks, foldedOf, search, listFolder, folderStats, folderTotals, highlightRanges,
     validateData, fixRefs, migrate, mergeData, diffData, revertChanges, rebaseChanges, safeUrl, exportFileName, exportPayload, localDay,
     exportHtmlFileName, isBookmarksHtml, decodeEntities, parseBookmarksHtml, mergeImported, exportHtml,
     formatDate, formatDateTime, dayToVN, monthToVN,

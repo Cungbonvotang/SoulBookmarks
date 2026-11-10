@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.6.1 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.7.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -191,6 +191,19 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: CN-10 trên điện thoại: ngoài "Xuất tệp JSON" có thêm "Chép dữ liệu" (chép JSON vào bộ nhớ tạm) và nhập bằng "Dán dữ liệu", phòng khi Soul không tải/chọn được tệp.
   - Biên: menu userscript của Soul có hai lệnh "Lưu / sửa trang này" và "Mở trình quản lý" (nếu Soul hiện menu này).
 
+- CN-23 (2.7.0) Danh sách dễ đọc, dễ chạm hơn (trình quản lý, cả bản tiện ích và bản Soul). Không đổi dữ liệu.
+  - Tên dài: tên dấu trang và tên thư mục trong danh sách hiện tối đa 2 dòng, quá thì "…".
+  - Kiểu xem Gọn: nút "Xem gọn" ở đầu danh sách bật/tắt. Khi bật: dòng thấp (≤ 50px, vẫn ≥ 44px), tên 1 dòng, không hiện nhãn và ngày; tên miền và đường dẫn thư mục vẫn hiện. Lựa chọn được nhớ khi mở lại (như CN-22).
+    - Chấp nhận: bật Gọn → dòng thấp hơn rõ (trước ≥ 62px); tắt → như cũ; đóng rồi mở lại trình quản lý → vẫn Gọn.
+  - Điện thoại (rộng ≤ 860px): tay nắm ≡ chỉ hiện sau khi bấm "Sắp xếp lại". Nút này chỉ có khi đang "Tự xếp" trong một thư mục có từ 2 mục, không ở chế độ chọn nhiều. Bấm "Xong", sang thư mục khác hoặc đổi cách sắp xếp → tay nắm ẩn lại. Máy tính: tay nắm luôn hiện như trước, không có nút này.
+    - Biên: đang "Sắp xếp lại" thì nút ⋮ của dòng tạm ẩn để nhường chỗ; nhấn giữ dòng vẫn ra menu.
+  - Tô chữ khớp: khi tìm bằng ô tìm, "Tên có chữ" hoặc "Địa chỉ có chữ", phần chữ khớp trong tên và tên miền được tô nền, theo đúng cách so chữ đang bật (không dấu / phân biệt hoa thường / đúng cụm / regex).
+    - Biên: tìm "sang tac" → tô nguyên chữ có dấu "Sáng tác"; regex sai → không tô; chữ chỉ khớp ở phần địa chỉ không hiện trên dòng → không tô, không lỗi; bỏ tìm → hết tô.
+  - Số đếm thư mục: cây thư mục và dòng thư mục ghi tổng số dấu trang nằm trong thư mục, tính cả thư mục con. Dòng thư mục ghi "N dấu trang", thêm "· M thư mục con" nếu có.
+  - Đường dẫn ở kết quả tìm: bấm → mở thư mục chứa, cuộn tới đúng dấu trang đó và làm nổi nó trong chốc lát.
+    - Biên: mục nằm sau hơn 60 dòng trong thư mục → vẫn tới đúng.
+  - Vùng chạm: ô sắp xếp, "Chọn nhiều", "Sắp xếp lại", "Xem gọn" cao ≥ 44px trên điện thoại. Màu tay nắm ≡, gợi ý phím tắt trong menu và dấu › của đường dẫn đậm hơn: tương phản ≥ 4.5:1 trên nền trắng (trước 2.58:1).
+
 ## 2. Dữ liệu ← thiet-ke-webapp
 Nơi lưu: bản tiện ích chrome.storage.local (quyền unlimitedStorage); bản Soul GM_setValue, thêm "sdt_ui" (vị trí nút nổi). Từ 2.2.0 bản Soul cất các khóa sdt_* (kể cả sdt_ui) trong kho GM của script "Sổ Dấu Trang – Kho" (giá trị là chuỗi JSON như cũ); kho GM riêng của script chính chỉ còn bản cũ và dấu "sdt_kho_moved". Từ 2.0.0 dữ liệu chia thành các khóa "sdt_*" (xem dưới); bản 1.x dùng một khóa "sdt_data" · Sao lưu: xuất/nhập JSON (bản Soul thêm chép/dán)
 Mỗi trình duyệt giữ dữ liệu riêng; chuyển giữa máy tính và điện thoại bằng xuất/nhập JSON. Gỡ tiện ích hoặc xóa dữ liệu trình duyệt là mất dữ liệu.
@@ -213,6 +226,7 @@ Cách lưu v2 (để chạy nhanh với dữ liệu lớn, CN-17): dữ liệu c
 - P1 Popup (bấm biểu tượng tiện ích): dòng trạng thái "Đã lưu / Chưa lưu"; form nhanh: tên, địa chỉ, thư mục (chọn), nhãn · nút chính Lưu (hoặc Cập nhật), phụ Xóa, "Mở trình quản lý".
 - M1 Trình quản lý (trang đầy đủ, mở trong tab): thanh trên có ô tìm, nút Lọc, nút Sắp xếp, nút ⋮ (Nhãn, Sao lưu); bên trái cây thư mục (điện thoại: ngăn kéo trượt từ trái, trên đầu có đường dẫn thư mục hiện tại); giữa là danh sách dấu trang (tên, tên miền, nhãn, ngày) · nút nổi "+" thêm dấu trang.
 - M1 (2.0.0): cây bên trái gồm "Tất cả dấu trang", gốc "Dấu trang" và các thư mục; đầu danh sách có đường dẫn thư mục và dãy thẻ điều kiện lọc; dòng thư mục và dòng dấu trang đều có nút ⋮ (menu CN-16) và tay nắm ≡ khi "Tự xếp"; dòng dấu trang bỏ ba nút Sửa/Chép/Xóa.
+- M1 (2.7.0, CN-23): hàng công cụ đầu danh sách gồm ô sắp xếp, "Chọn nhiều", "Sắp xếp lại" (chỉ điện thoại), nút "Xem gọn" ở cuối hàng; tên dài 2 dòng; chữ khớp tô nền vàng nhạt; cây thư mục ghi tổng số dấu trang kể cả thư mục con.
 - M2 Bảng lọc (2.0.0): Tên có chữ, Địa chỉ có chữ, Nhãn, Thời gian (Ngày tạo/cập nhật; Đúng ngày / Trong tháng / Khoảng ngày), Phạm vi · nút Áp dụng, Xóa bộ lọc.
 - M6 Hộp cây thư mục (CN-15): cây mở/đóng nhánh, thư mục đang chọn tô màu · nút Thư mục mới, Chọn, Hủy.
 - Màu nhãn: nền nhạt + chữ đậm cùng sắc trong viên thuốc; trong bảng lọc nhãn chưa chọn có chấm màu, nhãn đã chọn tô đặc màu của nó; màn Nhãn có chấm màu bấm được để đổi màu.
@@ -411,14 +425,26 @@ Bản 2.6.1 (7 lỗi soát ngày 2026-11-10) — thêm 2026-11-10.
 - CT-148 Xóa mục trùng rồi đóng hộp "Dấu trang trùng" → thông báo kèm Hoàn tác vẫn hiện, bấm trả lại mục.
 - CT-149 (CN-17) 50.000 dấu trang: đang đổi chữ 12.500 mục thì xóa một mục khác → kho đổi đủ 12.499 mục còn lại, mục xóa mất, màn hình khớp kho.
 - CT-150 320 nhãn: màn Nhãn ghi "Đang hiện 300 trong 320 nhãn…", bảng Lọc ghi "Đang hiện 200 trong 320…"; tìm nhãn thì hiện đúng.
+Bản 2.7.0 (CN-23) — thêm 2026-11-10.
+- CT-151 (CN-23) Hàm: số dấu trang của thư mục tính cả thư mục con, nhiều tầng; thư mục trống = 0.
+- CT-152 (CN-23) Hàm: vùng tô chữ khớp. "sang tac" trong "Sáng tác Việt" → tô "Sáng" và "tác"; phân biệt hoa thường "Sang" không tô "sang"; đúng cụm chỉ tô cả cụm liền; regex tô từng chỗ khớp; regex sai / ô trống → không có vùng nào; hai vùng chồng nhau gộp làm một; "Địa chỉ có chữ" chỉ tô ở tên miền, "Tên có chữ" chỉ tô ở tên.
+- CT-153 (CN-23) 390px: tên dài hiện 2 dòng, không tràn ngang. Bật "Xem gọn" → dòng ≤ 50px và ≥ 44px, tên 1 dòng, không thấy nhãn và ngày, còn tên miền; tắt → dòng ≥ 62px. Bật rồi đóng, mở lại → vẫn Gọn.
+- CT-154 (CN-23) 390px, thư mục "Tự xếp": chưa thấy tay nắm; bấm "Sắp xếp lại" → thấy tay nắm, nút ⋮ ẩn, kéo đổi chỗ được và lưu; "Xong" → tay nắm ẩn. Đổi sang "Tên A–Z" hoặc bật "Chọn nhiều" → không còn nút "Sắp xếp lại". Thư mục 1 mục → không có nút. 1280px: tay nắm hiện sẵn, không có nút.
+- CT-155 (CN-23) Tìm "sang tac" → tên "Sáng tác…" có phần tô đúng hai chữ; "Địa chỉ có chữ" = tên miền → tên miền có phần tô; xóa ô tìm → không còn phần tô nào.
+- CT-156 (CN-23) Cây: thư mục cha ghi tổng dấu trang của mình và các thư mục con. Dòng thư mục ghi "N dấu trang · M thư mục con"; thư mục không có thư mục con chỉ ghi "N dấu trang".
+- CT-157 (CN-23) Tìm ra một dấu trang nằm thứ 80 trong thư mục 100 mục → bấm đường dẫn → mở đúng thư mục, dòng đó nằm trong khung nhìn và được làm nổi; ô tìm trống.
+- CT-158 (CN-23) 390px: ô sắp xếp, "Chọn nhiều", "Sắp xếp lại", "Xem gọn" cao ≥ 44px. Màu tay nắm và gợi ý phím tắt có tương phản ≥ 4.5:1 với nền trắng.
+- CT-159 (CN-23, bản Soul) Trong lớp phủ: "Sắp xếp lại" rồi kéo đổi chỗ được; bật "Xem gọn", đóng, mở lại ở trang khác → vẫn Gọn.
+- CT-C8 (CN-23) Khung 360 và 412px, kiểu Thoáng và Gọn, có tên rất dài không dấu cách: không cuộn ngang; không lỗi console.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-10, bản 2.6.1, giờ Asia/Ho_Chi_Minh. Tổng 336/336 qua.
-- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10, sửa lỗi 2.6.0 12/12, sửa lỗi 2.6.1 8/8 (CT-141…CT-143 và phần hàm của CT-144…CT-150).
-- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10, bản 2.6.0 12/12, bản 2.6.1 14/14 (CT-144…CT-150, CT-C1, CT-C3).
-- Bản Soul: 25/25. Script Kho: 11/11. Tốc độ (perf_test): 12/12.
-- Chưa thử được ở máy: Soul thật (hai thao tác ghi liền nhau trên máy chậm; vị trí cuộn trong lớp phủ khi mở lại).
+2026-11-10, bản 2.7.0, giờ Asia/Ho_Chi_Minh. Tổng 363/363 qua.
+- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10, sửa lỗi 2.6.0 12/12, sửa lỗi 2.6.1 8/8, bản 2.7.0 17/17 (CT-151, CT-152).
+- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10, bản 2.6.0 12/12, bản 2.6.1 14/14, bản 2.7.0 9/9 (CT-153…CT-158, CT-C8).
+- Bản Soul: 26/26 (thêm CT-159). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
+- Ca cũ sửa theo đặc tả mới (CN-23): các ca kéo thả ở khung 390px (CT-64, CT-65, CT-53) bấm "Sắp xếp lại" trước khi kéo.
+- Chưa thử được ở máy: Soul thật (ô sắp xếp tự co theo chữ và tên 2 dòng khi đang tìm ở kiểu Gọn cần WebView mới; máy cũ vẫn dùng được, chỉ xuống dòng khác đi).
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
@@ -432,6 +458,7 @@ Bản 2.6.1 (7 lỗi soát ngày 2026-11-10) — thêm 2026-11-10.
 - 2.5.0 (2026-11-06): tìm dấu trang trùng địa chỉ / tên, so sánh, chọn giữ, xóa mục thừa, gộp nhãn, Hoàn tác (CN-21). DATA_VERSION giữ 2. Phương án làm lại cách lưu (3.0.0, IndexedDB cho bản máy tính) vẫn chờ người dùng duyệt.
 - 2.6.0 (2026-11-09): trình quản lý nhớ cách sắp xếp, chỗ xem, vị trí cuộn, cây thư mục (CN-22). Sửa 9 lỗi soát ngày 2026-11-09: Hoàn tác chỉ trả lại mục đã đổi (core.revertChanges); kho ghi thư mục và màu nhãn theo từng mục; regex thử lại không cờ u; kiểm danh sách đang chọn bằng tập mã; chạm tên khi chọn nhiều; bỏ qua / không mở địa chỉ ngoài http, https, ftp, file (core.safeUrl); popup chỉ lấy tab của cửa sổ đang dùng; gộp HTML báo riêng trùng trong tệp; giữ trạng thái cắt khi dán lỗi; báo ngay khi nơi khác ghi dấu dữ liệu hỏng. DATA_VERSION giữ 2.
 - 2.6.1 (2026-11-10): sửa 7 lỗi soát ngày 2026-11-10: mọi lần ghi xếp hàng (kho: hàng đợi + khóa navigator.locks ở bản tiện ích; trình quản lý: hàng đợi ghi/đọc lại, ghép thay đổi bằng core.rebaseChanges); Hoàn tác cho xóa nhãn và đổi tên/gộp nhãn; hỏi lại khi xóa từ 10 dấu trang, Hoàn tác 12 giây; ghi rõ phạm vi khi tìm trong thư mục và đưa lối sang kết quả nơi khác; thông báo (Hoàn tác) không mất theo hộp thoại; thứ tự kéo thả tự đánh số lại khi số thực hết chỗ; báo khi danh sách nhãn bị cắt. DATA_VERSION giữ 2.
+- 2.7.0 (2026-11-10): danh sách dễ đọc, dễ chạm hơn (CN-23): tên 2 dòng; nút "Xem gọn" (được nhớ); điện thoại có "Sắp xếp lại" mới hiện tay nắm ≡; tô chữ khớp khi tìm (core.highlightRanges); cây và dòng thư mục ghi tổng dấu trang kể cả thư mục con (core.folderTotals); bấm đường dẫn ở kết quả tìm → tới đúng mục; nút đầu danh sách cao 44px trên điện thoại; màu tay nắm, gợi ý phím tắt đậm hơn. DATA_VERSION giữ 2; trạng thái nhớ thêm trường dense.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.
@@ -457,3 +484,4 @@ Bản 2.6.1 (7 lỗi soát ngày 2026-11-10) — thêm 2026-11-10.
 - [kiem-thu-webapp] Soát toàn diện 2026-11-09 (bản 2.5.0): 9 lỗi — Hoàn tác đè thay đổi của nơi khác (mất dấu trang vừa lưu ở popup / tab khác); regex cờ u từ chối "\-", "\_", "a{2"; kiểm lựa chọn O(chọn × tổng) ~1,4 s với 10.000/50.000; chạm tên khi chọn nhiều không bỏ chọn; kho Soul (đường sự kiện) có thể bị chèn địa chỉ javascript:; popup lấy tab cửa sổ khác; gộp HTML gọi trùng-trong-tệp là "đã có"; dán lỗi làm mất trạng thái cắt; dấu "dữ liệu hỏng" từ nơi khác không báo cho trình quản lý đang mở (kho chỉ báo khi sdt_meta đổi). Đã sửa ở 2.6.0.
 - [kiem-thu-webapp] Soát lần 2 ngày 2026-11-10 (bản 2.6.0): 7 vấn đề — (1) hai thao tác chồng nhau làm lệch kho và màn hình: 50.000 dấu trang, đổi chữ 12.500 mục rồi xóa một mục khi đang ghi → kho chỉ đổi 12.305 (đọc–sửa–ghi chồng nhau trên cùng phần dữ liệu; S.data bị ghi đè bằng bản tính từ dữ liệu cũ); (2) xóa nhãn, gộp nhãn không có Hoàn tác; (3) Chọn hết → Xóa không hỏi lại; (4) tìm trong thư mục không báo phạm vi; (5) Hoàn tác mất khi đóng hộp trùng; (6) thứ tự cỡ Date.now() hết độ phân giải số thực sau 13–25 lần thả cùng khe; (7) danh sách nhãn cắt 300 / 200 không báo. Đã sửa ở 2.6.1.
 - [sua-webapp] 2.6.1: thông báo ở đáy hộp thoại che nút hành động ở đáy hộp trong lúc đang hiện (tối đa 6–12 giây); đóng hộp bằng nút X ở đầu hộp vẫn được. Chưa đổi.
+- (sua-webapp 2.7.0, 2026-11-10) Ô sắp xếp tự co theo chữ dùng CSS field-sizing, tên 2 dòng khi đang tìm ở kiểu Gọn dùng :has(); trình duyệt cũ không hiểu thì hàng công cụ xuống dòng / tên còn 1 dòng, không lỗi. "Dấu trang" (gốc) trong cây vẫn đếm mục trực tiếp (dấu trang + thư mục cấp một), khác các thư mục (tổng dấu trang kể cả thư mục con).

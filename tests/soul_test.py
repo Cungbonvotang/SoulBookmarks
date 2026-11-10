@@ -185,10 +185,13 @@ with sync_playwright() as p:
     row_menu(D, item_id(D, 'b9'), 'm-delete'); W(D); after_del = T(D, 'list-item').count()
     T(D, 'toast-action').click(); W(D, 400)
     # kéo thả trong lớp phủ: b13 lên trên b9
+    no_grip = not item_id(D, 'b13').locator('[data-test="row-handle"]').is_visible()          # 2.7.0: tay nắm chỉ hiện khi "Sắp xếp lại"
+    T(D, 'btn-reorder').click(); W(D, 200)
     item_id(D, 'b9').evaluate("e => e.scrollIntoView({ block: 'center' })"); W(D, 200)   # 2.2.0: có dòng nhắc cài Kho ở đầu danh sách
     b9b = item_id(D, 'b9').bounding_box(); hb = item_id(D, 'b13').locator('[data-test="row-handle"]').bounding_box()
     D.mouse.move(hb['x'] + 10, hb['y'] + 10); D.mouse.down(); D.mouse.move(b9b['x'] + 100, b9b['y'] + 5, steps=10); D.mouse.up(); W(D, 400)
-    dragged = ids(D)[:2] == ['b13', 'b9']
+    dragged = no_grip and ids(D)[:2] == ['b13', 'b9']
+    T(D, 'btn-reorder').click(); W(D, 200)                                                   # Xong: nút ⋮ hiện lại
     # cắt / dán
     row_menu(D, item_id(D, 'b13'), 'm-cut')
     D.locator('[data-test="list-folder"][data-id="ht"] [data-test="folder-row-name"]').click(); W(D)
@@ -399,6 +402,24 @@ with sync_playwright() as p:
     V = newpage(ctx, f'{L}/trang-hai.html'); open_mgr(V)
     other_page = (T(V, 'view-title').inner_text().strip(), T(V, 'sort-select').input_value())
     ok('CT-140 Soul: mở lại (cùng trang, trang khác) đúng thư mục và cách sắp xếp', same_page == ('Anime', 'za') and other_page == ('Anime', 'za'), [same_page, other_page])
+    # CT-159 Soul (2.7.0): "Sắp xếp lại" rồi kéo trong lớp phủ; "Xem gọn" được nhớ khi mở ở trang khác
+    T(V, 'sort-select').select_option('manual'); W(V, 300)
+    g7 = item_id(V, 'b7').locator('[data-test="row-handle"]')
+    hid159 = not g7.is_visible()
+    T(V, 'btn-reorder').click(); W(V, 250)
+    o0 = ids(V)
+    gb = item_id(V, o0[-1]).locator('[data-test="row-handle"]').bounding_box(); fb = item_id(V, o0[0]).bounding_box()
+    V.mouse.move(gb['x'] + gb['width'] / 2, gb['y'] + gb['height'] / 2); V.mouse.down(); V.mouse.move(fb['x'] + 100, fb['y'] + 5, steps=12); V.mouse.up(); W(V, 500)
+    moved159 = ids(V) == [o0[-1]] + o0[:-1]
+    T(V, 'btn-reorder').click(); W(V, 200)
+    T(V, 'btn-dense').click(); W(V, 500)
+    h_dense = item_id(V, 'b7').bounding_box()['height']
+    V.evaluate("() => window.__SDT_SOUL__.closeManager()"); W(V, 300)
+    V.close()
+    V = newpage(ctx, f'{L}/trang-thu.html'); open_mgr(V)
+    kept159 = T(V, 'btn-dense').get_attribute('aria-pressed') == 'true' and item_id(V, 'b7').bounding_box()['height'] <= 50
+    ok('CT-159 Soul: Sắp xếp lại + kéo trong lớp phủ; Xem gọn được nhớ ở trang khác', hid159 and moved159 and 44 <= h_dense <= 50 and kept159, [hid159, o0, ids(V), h_dense, kept159])
+    T(V, 'btn-dense').click(); W(V, 400)
     V.evaluate("() => GM_deleteValue('sdt_ui')")
     V.close()
 

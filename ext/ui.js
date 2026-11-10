@@ -46,6 +46,7 @@
     check: '<path d="M5 12l5 5 9-10"/>',
     search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
     grip: '<path d="M5 9h14M5 15h14"/>',
+    rows: '<path d="M4 5.5h16M4 10h16M4 14.5h16M4 19h16"/>',
     sort: '<path d="M7 5v14M4 16l3 3 3-3M17 19V5M14 8l3-3 3 3"/>',
     all: '<path d="M5 5h14M5 12h14M5 19h14"/>',
     bm: '<path d="M7 4h10v16l-5-4-5 4z"/>',
