@@ -15,6 +15,7 @@
   const { h, icon, BookmarkForm, openDialog, confirmDialog, promptDialog, contextMenu, pickFolder, toast, copyText, faviconUrl, tagClass } = UI;
   const ORIGIN = 'manager';
   const PAGE = 60;
+  const BULK_CONFIRM = 10;      // xóa từ chừng này dấu trang trở lên thì hỏi lại
 
   function buildLayout(withClose) {
     const ib = (id, test, label, extra) => h('button', Object.assign({ type: 'button', class: 'icon-btn', id, 'data-test': test, 'aria-label': label }, extra || {}));
@@ -65,10 +66,15 @@
     const keyOf = it => it.kind + ':' + it.id;
 
     /* ---------- lưu ---------- */
-    async function commit(newData, opts) {
-      opts = opts || {};
+    // Mọi lần ghi và đọc lại xếp hàng lần lượt. Thao tác được tính từ bản dữ liệu lúc bấm (base);
+    // nếu tới lượt mà dữ liệu đã đổi (thao tác trước, popup, tab khác) thì ghép thay đổi của nó lên bản mới nhất.
+    let chain = Promise.resolve();
+    function enqueue(fn) { const p = chain.then(fn, fn); chain = p.catch(() => {}); return p; }
+    function commit(newData, opts) { const base = S.data; return enqueue(() => commitNow(base, newData, opts || {})); }
+    async function commitNow(base, wanted, opts) {
       if (S.readOnly && !opts.force) { toast('Dữ liệu đang lỗi nên không ghi được. Xem thông báo ở đầu trang.', { error: true }); return false; }
       const prev = S.data;
+      const newData = opts.replace ? wanted : SDT.rebaseChanges(prev, base, wanted);
       try {
         if (opts.replace) await store.replaceAll(newData, ORIGIN);
         else await store.save(prev, newData, ORIGIN);
@@ -83,7 +89,7 @@
       renderAll(opts.keepScroll !== false);
       if (opts.undo) {
         // Hoàn tác chỉ trả lại các mục bước này đã đổi; thay đổi của nơi khác (popup, tab khác) giữ nguyên.
-        toast(opts.undo, { action: 'Hoàn tác', onAction: async () => { if (await commit(SDT.revertChanges(S.data, prev, newData), { keepScroll: true })) toast('Đã hoàn tác.'); } });
+        toast(opts.undo, { action: 'Hoàn tác', duration: opts.undoMs || 0, onAction: async () => { if (await commit(SDT.revertChanges(S.data, prev, newData), { keepScroll: true })) toast('Đã hoàn tác.'); } });
       }
       return true;
     }
@@ -222,6 +228,11 @@
         head.append(h('div', { class: 'cchips', 'data-test': 'filter-summary' }, chips,
           h('button', { type: 'button', class: 'link small', 'data-test': 'btn-clear-filter-inline', onclick: clearFilters }, 'Bỏ lọc')));
       }
+      if (searching() && S.view !== 'all' && S.view !== 'root' && S.q.scope !== 'all') {
+        head.append(h('p', { class: 'scope-note', 'data-test': 'scope-note' },
+          h('span', {}, 'Đang tìm trong “' + ((SDT.getFolder(S.data, S.view) || {}).name || '') + '”.'),
+          h('button', { type: 'button', class: 'link small', 'data-test': 'scope-all', onclick: () => { S.q.scope = 'all'; S.notice = ''; renderAll(false); } }, 'Tìm ở tất cả thư mục')));
+      }
       if (S.searchError) head.append(h('p', { class: 'lh-notice err', role: 'alert', 'data-test': 'search-error' }, S.searchError));
       if (S.notice) head.append(h('p', { class: 'lh-notice', 'data-test': 'notice' }, S.notice));
       const se = $('search');
@@ -327,9 +338,15 @@
           h('p', {}, 'Khi đang xem một trang web, bấm biểu tượng Sổ Dấu Trang để lưu trang đó. Hoặc bấm + để thêm bằng tay.')));
       } else if (!S.entries.length) {
         if (searching()) {
+          // Đang tìm trong một thư mục: cho biết nơi khác có bao nhiêu kết quả.
+          let elsewhere = 0;
+          const scoped = S.view !== 'all' && S.view !== 'root' && S.q.scope !== 'all';
+          if (scoped && !S.searchError) elsewhere = SDT.search(S.data, Object.assign({}, S.q, { folder: 'all', scope: 'all' })).items.length;
           list.append(h('div', { class: 'empty', 'data-test': 'empty-state' }, h('p', { class: 'empty-t' }, 'Không tìm thấy'),
-            h('p', {}, 'Không có dấu trang nào thỏa mọi điều kiện đang đặt.'),
-            h('button', { type: 'button', class: 'btn quiet', 'data-test': 'btn-clear-filter', onclick: clearAllFilters }, 'Xóa bộ lọc')));
+            h('p', {}, scoped ? 'Không có dấu trang nào khớp trong thư mục này.' : 'Không có dấu trang nào thỏa mọi điều kiện đang đặt.'),
+            h('div', { class: 'empty-acts' },
+              scoped && elsewhere ? h('button', { type: 'button', class: 'btn primary', 'data-test': 'empty-scope-all', onclick: () => { S.q.scope = 'all'; renderAll(false); } }, 'Xem ' + elsewhere + ' kết quả ở thư mục khác') : null,
+              h('button', { type: 'button', class: 'btn quiet', 'data-test': 'btn-clear-filter', onclick: clearAllFilters }, 'Xóa bộ lọc'))));
         } else if (folderView()) {
           list.append(h('div', { class: 'empty', 'data-test': 'empty-state' }, h('p', { class: 'empty-t' }, 'Thư mục trống'),
             h('div', { class: 'empty-acts' },
@@ -581,11 +598,14 @@
       if (nf) {
         const ok = await confirmDialog({ title: 'Xóa ' + items.length + ' mục?', message: 'Gồm ' + nf + ' thư mục và mọi thứ bên trong chúng.', okText: 'Xóa', danger: true, test: 'dlg-delete-items' });
         if (!ok) return;
+      } else if (items.length >= BULK_CONFIRM) {
+        const ok = await confirmDialog({ title: 'Xóa ' + items.length + ' dấu trang?', message: 'Sau khi xóa có nút Hoàn tác trong ít giây.', okText: 'Xóa ' + items.length + ' dấu trang', danger: true, test: 'dlg-delete-items' });
+        if (!ok) return;
       }
       const r = SDT.deleteItems(S.data, items);
       S.selectMode = false; S.selected.clear();
       const label = items.length === 1 && items[0].kind === 'b' ? 'Đã xóa “' + ((bookmarkById(items[0].id) || {}).title || '') + '”.' : 'Đã xóa ' + items.length + ' mục.';
-      await commit(r.data, { keepScroll: true, undo: label });
+      await commit(r.data, { keepScroll: true, undo: label, undoMs: items.length >= BULK_CONFIRM ? 12000 : 0 });
     }
     /* ---------- dấu trang trùng (2.5.0) ---------- */
     function openDuplicates() {
@@ -939,6 +959,7 @@
         const f = tagSearch ? SDT.fold(tagSearch.value.trim()) : '';
         const shown = tags.filter(t => !f || SDT.fold(t.tag).includes(f) || chosen.has(t.tag.toLowerCase()));
         if (!tags.length) { tagBox.append(h('p', { class: 'muted' }, 'Chưa có nhãn nào.')); return; }
+        if (shown.length > 200) tagBox.append(h('p', { class: 'muted', 'data-test': 'filter-tag-more' }, 'Đang hiện 200 trong ' + shown.length + ' nhãn. Gõ vào ô “Tìm nhãn” để thấy nhãn khác.'));
         for (const t of shown.slice(0, 200)) {
           const cb = h('input', { type: 'checkbox', value: t.tag, checked: chosen.has(t.tag.toLowerCase()), 'data-test': 'filter-tag', 'data-tag': t.tag,
             onchange: e => { e.target.checked ? chosen.add(t.tag.toLowerCase()) : chosen.delete(t.tag.toLowerCase()); } });
@@ -1015,6 +1036,7 @@
             const f = SDT.fold(search.value.trim());
             const tags = all.filter(t => !f || SDT.fold(t.tag).includes(f));
             if (!all.length) { box.append(h('p', { class: 'muted', 'data-test': 'tags-empty' }, 'Chưa có nhãn nào. Thêm nhãn khi lưu hoặc sửa dấu trang.')); return; }
+            if (tags.length > 300) box.append(h('p', { class: 'muted', 'data-test': 'tags-more' }, 'Đang hiện 300 trong ' + tags.length + ' nhãn. Gõ vào ô “Tìm nhãn” để thấy nhãn khác.'));
             for (const t of tags.slice(0, 300)) {
               box.append(h('div', { class: 'tagrow', 'data-test': 'tags-row', 'data-tag': t.tag },
                 h('button', { type: 'button', class: 'cdot ' + tagClass(S.data, t.tag), 'data-test': 'tag-color', 'aria-label': 'Đổi màu nhãn ' + t.tag, onclick: async () => { await colorDlg(t.tag); draw(); } }),
@@ -1053,14 +1075,14 @@
       const r = SDT.renameTag(S.data, tag, val, Date.now());
       if (!r.ok) { toast(r.error, { error: true }); return; }
       S.q.tags = S.q.tags.map(t => (t.toLowerCase() === tag.toLowerCase() ? r.name : t)).filter((t, i, a) => a.findIndex(x => x.toLowerCase() === t.toLowerCase()) === i);
-      if (await commit(r.data, { keepScroll: true })) toast(r.merged ? 'Đã gộp vào nhãn “' + r.name + '”.' : 'Đã đổi tên nhãn.');
+      await commit(r.data, { keepScroll: true, undo: r.merged ? 'Đã gộp vào nhãn “' + r.name + '”.' : 'Đã đổi tên nhãn.' });
     }
     async function deleteTagDlg(tag) {
       const ok = await confirmDialog({ title: 'Xóa nhãn “' + tag + '”?', message: 'Nhãn sẽ được gỡ khỏi mọi dấu trang. Dấu trang vẫn giữ nguyên.', okText: 'Xóa nhãn', danger: true, test: 'dlg-tag-delete' });
       if (!ok) return;
       const r = SDT.deleteTag(S.data, tag, Date.now());
       S.q.tags = S.q.tags.filter(t => t.toLowerCase() !== tag.toLowerCase());
-      if (await commit(r.data, { keepScroll: true })) toast('Đã xóa nhãn.');
+      await commit(r.data, { keepScroll: true, undo: 'Đã xóa nhãn “' + tag + '” khỏi ' + r.changed + ' dấu trang.' });
     }
 
     /* ---------- sao lưu ---------- */
@@ -1298,7 +1320,7 @@
       });
       $('list').addEventListener('contextmenu', e => { if (e.target.closest('[data-row]')) return; e.preventDefault(); backgroundMenu(e); });
       (env.keyTarget || container).addEventListener('keydown', onKey);
-      store.onChange(info => { if (info.origin === ORIGIN && info.own) return; reload(info); });
+      store.onChange(info => { if (info.origin === ORIGIN && info.own) return; reload(info); });   // reload tự xếp hàng sau các lần ghi đang chờ
     }
     // Đổi từ nơi khác (popup, tab khác): nếu biết khóa nào đổi thì chỉ đọc lại các phần đó.
     async function reloadPartial(keys) {
@@ -1320,7 +1342,8 @@
       S.data = { version: SDT.DATA_VERSION, folders: keys.includes('sdt_folders') ? v.data.folders : S.data.folders, bookmarks: kept.concat(v.data.bookmarks), tagColors: v.data.tagColors };
       return true;
     }
-    async function reload(info) {
+    function reload(info) { return enqueue(() => reloadNow(info)); }
+    async function reloadNow(info) {
       if (info && info.keys && !info.keys.includes('sdt_error') && !S.readOnly && root.SDTStorage) {
         try {
           if (await reloadPartial(info.keys)) {

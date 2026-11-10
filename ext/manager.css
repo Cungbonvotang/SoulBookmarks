@@ -58,6 +58,8 @@
 .cchip-x .ic { width: 15px; height: 15px; }
 .cchip-x:hover { background: rgba(0, 0, 0, .06); }
 .lh-notice { font-size: 13.5px; color: var(--ribbon); }
+.scope-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; font-size: 13.5px; color: var(--muted); }
+.scope-note .link { min-height: 32px; }
 
 .banner { margin: 6px 22px 6px; border-radius: 16px; padding: 14px 18px; background: var(--ribbon-soft); display: grid; gap: 6px; max-width: 900px; font-size: 14px; }
 .banner-t { font-weight: 700; color: var(--ribbon); font-size: 15px; }

@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.6.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.6.1 · DATA_VERSION: 2 · Cập nhật: 2026-11-04
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -400,14 +400,25 @@ Bản 2.6.0 (CN-22 và 9 lỗi soát ngày 2026-11-09) — thêm 2026-11-09.
 - CT-138 Cắt rồi dán khi ghi lỗi → vẫn giữ trạng thái cắt (nút "Dán … vào đây" còn).
 - CT-139 Kho bị chèn mục javascript: → mục không hiện, có thông báo "Bỏ qua 1 mục…", không vào chế độ lỗi.
 - CT-140 (CN-22, bản Soul) Mở lại cùng trang và ở trang khác → đúng thư mục và cách sắp xếp.
+Bản 2.6.1 (7 lỗi soát ngày 2026-11-10) — thêm 2026-11-10.
+- CT-141 (CN-03 kéo thả) Thả 200 lần liên tiếp vào cùng một khe, thứ tự cỡ Date.now() (mục lưu từ popup) và thứ tự nhỏ: lần nào mục cũng nằm đúng chỗ, không có hai mục trùng số thứ tự.
+- CT-142 Ghép thay đổi: thao tác tính từ bản cũ được áp lên bản mới nhất mà không bỏ thay đổi đã ghi trước đó.
+- CT-143 (CN-17) Kho: ba lần ghi gọi cùng lúc vào cùng một phần dữ liệu → đủ cả ba, rev tăng 3; "Thay thế toàn bộ" xếp hàng sau lần ghi đang chờ; dùng khóa chung của backend khi có.
+- CT-144 Giao diện: bấm "Xóa" ở hai nhóm trùng trong cùng một nhịp → cả hai được ghi, số nhóm trên màn hình khớp kho.
+- CT-145 Xóa nhãn → thông báo "Đã xóa nhãn “x” khỏi N dấu trang." kèm Hoàn tác → trả lại đủ. Gộp nhãn (đổi tên trùng nhãn khác) → có Hoàn tác → trả lại nhãn cũ.
+- CT-146 Chọn hết (≥ 10 dấu trang) → Xóa → hỏi "Xóa N dấu trang?"; Hủy giữ nguyên; Xóa → Hoàn tác (12 giây) trả lại đủ. Chọn 3 → Xóa: không hỏi, có Hoàn tác.
+- CT-147 Đang ở thư mục, tìm chữ chỉ có ở thư mục khác → dòng "Đang tìm trong “…”" + nút "Xem N kết quả ở thư mục khác" → bấm ra N kết quả. Có kết quả trong thư mục → vẫn có dòng phạm vi và nút "Tìm ở tất cả thư mục".
+- CT-148 Xóa mục trùng rồi đóng hộp "Dấu trang trùng" → thông báo kèm Hoàn tác vẫn hiện, bấm trả lại mục.
+- CT-149 (CN-17) 50.000 dấu trang: đang đổi chữ 12.500 mục thì xóa một mục khác → kho đổi đủ 12.499 mục còn lại, mục xóa mất, màn hình khớp kho.
+- CT-150 320 nhãn: màn Nhãn ghi "Đang hiện 300 trong 320 nhãn…", bảng Lọc ghi "Đang hiện 200 trong 320…"; tìm nhãn thì hiện đúng.
 - CT-C6 (bản Soul) Không lỗi console/pageerror trên trang khi dùng; khung 360 và 412px: bảng và lớp phủ không cuộn ngang; nút chính ≥ 44px.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-09, bản 2.6.0, giờ Asia/Ho_Chi_Minh.
-- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10, sửa lỗi 2.6.0 12/12 (CT-125…CT-129).
-- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10, bản 2.6.0 12/12 (CT-130…CT-139, CT-C1).
-- Bản Soul: 25/25 (thêm CT-140). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
-- Chưa thử được ở máy: popup mở khi đang ở trang quản lý với nhiều cửa sổ (đã sửa theo mã: chỉ lấy tab của cửa sổ đang dùng); Soul thật (vị trí cuộn trong lớp phủ khi mở lại).
+2026-11-10, bản 2.6.1, giờ Asia/Ho_Chi_Minh. Tổng 336/336 qua.
+- Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10, sửa lỗi 2.6.0 12/12, sửa lỗi 2.6.1 8/8 (CT-141…CT-143 và phần hàm của CT-144…CT-150).
+- Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10, bản 2.6.0 12/12, bản 2.6.1 14/14 (CT-144…CT-150, CT-C1, CT-C3).
+- Bản Soul: 25/25. Script Kho: 11/11. Tốc độ (perf_test): 12/12.
+- Chưa thử được ở máy: Soul thật (hai thao tác ghi liền nhau trên máy chậm; vị trí cuộn trong lớp phủ khi mở lại).
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
@@ -420,6 +431,7 @@ Bản 2.6.0 (CN-22 và 9 lỗi soát ngày 2026-11-09) — thêm 2026-11-09.
 - 2.4.0 (2026-11-06): đổi chữ hàng loạt ở tên / địa chỉ (CN-20): ⋯ → Đổi chữ các kết quả, nút Đổi chữ trên thanh chọn nhiều, xem trước, Hoàn tác, báo mục bỏ qua / trùng địa chỉ. Thanh chọn nhiều 6 nút chia đều. DATA_VERSION giữ 2.
 - 2.5.0 (2026-11-06): tìm dấu trang trùng địa chỉ / tên, so sánh, chọn giữ, xóa mục thừa, gộp nhãn, Hoàn tác (CN-21). DATA_VERSION giữ 2. Phương án làm lại cách lưu (3.0.0, IndexedDB cho bản máy tính) vẫn chờ người dùng duyệt.
 - 2.6.0 (2026-11-09): trình quản lý nhớ cách sắp xếp, chỗ xem, vị trí cuộn, cây thư mục (CN-22). Sửa 9 lỗi soát ngày 2026-11-09: Hoàn tác chỉ trả lại mục đã đổi (core.revertChanges); kho ghi thư mục và màu nhãn theo từng mục; regex thử lại không cờ u; kiểm danh sách đang chọn bằng tập mã; chạm tên khi chọn nhiều; bỏ qua / không mở địa chỉ ngoài http, https, ftp, file (core.safeUrl); popup chỉ lấy tab của cửa sổ đang dùng; gộp HTML báo riêng trùng trong tệp; giữ trạng thái cắt khi dán lỗi; báo ngay khi nơi khác ghi dấu dữ liệu hỏng. DATA_VERSION giữ 2.
+- 2.6.1 (2026-11-10): sửa 7 lỗi soát ngày 2026-11-10: mọi lần ghi xếp hàng (kho: hàng đợi + khóa navigator.locks ở bản tiện ích; trình quản lý: hàng đợi ghi/đọc lại, ghép thay đổi bằng core.rebaseChanges); Hoàn tác cho xóa nhãn và đổi tên/gộp nhãn; hỏi lại khi xóa từ 10 dấu trang, Hoàn tác 12 giây; ghi rõ phạm vi khi tìm trong thư mục và đưa lối sang kết quả nơi khác; thông báo (Hoàn tác) không mất theo hộp thoại; thứ tự kéo thả tự đánh số lại khi số thực hết chỗ; báo khi danh sách nhãn bị cắt. DATA_VERSION giữ 2.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.
@@ -443,3 +455,5 @@ Bản 2.6.0 (CN-22 và 9 lỗi soát ngày 2026-11-09) — thêm 2026-11-09.
 - [sua-webapp] 2.2.0: một trang web cố ý giả mạo script Kho (khi chưa cài Kho, qua đường sự kiện) có thể nhận được bản sao dấu trang; dữ liệu thật không bị xóa. Rủi ro thấp, đã ghi trong màn Sao lưu khi dùng đường trang có thể thấy.
 - [sua-webapp] 2.4.0: thao tác hàng loạt trên nhiều mục rải rác (đổi chữ, xóa, thêm nhãn) ở bản tiện ích tốn ~5 s với 50.000 dấu trang vì chrome.storage ghi lại gần hết các phần dữ liệu. Người dùng chọn làm lại cách lưu (bản sau).
 - [kiem-thu-webapp] Soát toàn diện 2026-11-09 (bản 2.5.0): 9 lỗi — Hoàn tác đè thay đổi của nơi khác (mất dấu trang vừa lưu ở popup / tab khác); regex cờ u từ chối "\-", "\_", "a{2"; kiểm lựa chọn O(chọn × tổng) ~1,4 s với 10.000/50.000; chạm tên khi chọn nhiều không bỏ chọn; kho Soul (đường sự kiện) có thể bị chèn địa chỉ javascript:; popup lấy tab cửa sổ khác; gộp HTML gọi trùng-trong-tệp là "đã có"; dán lỗi làm mất trạng thái cắt; dấu "dữ liệu hỏng" từ nơi khác không báo cho trình quản lý đang mở (kho chỉ báo khi sdt_meta đổi). Đã sửa ở 2.6.0.
+- [kiem-thu-webapp] Soát lần 2 ngày 2026-11-10 (bản 2.6.0): 7 vấn đề — (1) hai thao tác chồng nhau làm lệch kho và màn hình: 50.000 dấu trang, đổi chữ 12.500 mục rồi xóa một mục khi đang ghi → kho chỉ đổi 12.305 (đọc–sửa–ghi chồng nhau trên cùng phần dữ liệu; S.data bị ghi đè bằng bản tính từ dữ liệu cũ); (2) xóa nhãn, gộp nhãn không có Hoàn tác; (3) Chọn hết → Xóa không hỏi lại; (4) tìm trong thư mục không báo phạm vi; (5) Hoàn tác mất khi đóng hộp trùng; (6) thứ tự cỡ Date.now() hết độ phân giải số thực sau 13–25 lần thả cùng khe; (7) danh sách nhãn cắt 300 / 200 không báo. Đã sửa ở 2.6.1.
+- [sua-webapp] 2.6.1: thông báo ở đáy hộp thoại che nút hành động ở đáy hộp trong lúc đang hiện (tối đa 6–12 giây); đóng hộp bằng nút X ở đầu hộp vẫn được. Chưa đổi.

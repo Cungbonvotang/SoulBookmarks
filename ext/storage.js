@@ -161,8 +161,19 @@
       return { ok: true, bookmarks: out };
     }
 
+    // Mọi lần ghi xếp hàng lần lượt (đọc–sửa–ghi không được chồng nhau). backend.lock: khóa chung giữa các trang (tiện ích).
+    let queue = Promise.resolve();
+    function serial(fn) {
+      const run = () => (backend.lock ? backend.lock(fn) : fn());
+      const p = queue.then(run, run);
+      queue = p.catch(() => {});
+      return p;
+    }
+    function apply(diff, origin) { return serial(() => applyNow(diff, origin)); }
+    function replaceAll(data, origin) { return serial(() => replaceAllNow(data, origin)); }
+
     // Ghi phần thay đổi: chỉ đọc/ghi các phần bị chạm.
-    async function apply(diff, origin) {
+    async function applyNow(diff, origin) {
       const e = await ensure();
       if (!e.ok) throw new Error(e.error);
       const meta = Object.assign({ version: SDT.DATA_VERSION, rev: 0, shards: SHARDS, buckets: BUCKETS, tagColors: {} }, e.meta || {});
@@ -234,7 +245,7 @@
       return apply(d, origin);
     }
 
-    async function replaceAll(data, origin) {
+    async function replaceAllNow(data, origin) {
       let rev = 0;
       try { const r = await backend.get([K.meta]); if (r[K.meta] && Number.isFinite(r[K.meta].rev)) rev = r[K.meta].rev; } catch (e) { /* kho hỏng: ghi đè theo yêu cầu người dùng */ }
       const lay = layout(data, rev + 1, writer);

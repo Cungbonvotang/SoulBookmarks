@@ -296,7 +296,11 @@
     if (!next) return { orders: Array.from({ length: count }, (_, i) => prev.order + 1 + i), renumber: null };
     if (!prev) return { orders: Array.from({ length: count }, (_, i) => next.order - count + i), renumber: null };
     const step = (next.order - prev.order) / (count + 1);
-    if (step > 1e-6) return { orders: Array.from({ length: count }, (_, i) => prev.order + step * (i + 1)), renumber: null };
+    const between = Array.from({ length: count }, (_, i) => prev.order + step * (i + 1));
+    // Số thực hết chỗ phân biệt (thứ tự cỡ Date.now() chỉ còn bước ~0,0002): phải đánh số lại.
+    let distinct = step > 1e-6 && between[0] > prev.order && between[count - 1] < next.order;
+    for (let i = 1; distinct && i < count; i++) if (!(between[i] > between[i - 1])) distinct = false;
+    if (distinct) return { orders: between, renumber: null };
     // Hết khe: đánh số lại cả nhóm anh em.
     const map = new Map();
     let n = 0;
@@ -922,6 +926,9 @@
     }));
   }
 
+  // Ghép thay đổi (base → next) lên bản dữ liệu hiện tại: dùng khi dữ liệu đã đổi trong lúc một thao tác đang chờ ghi.
+  function rebaseChanges(cur, base, next) { return cur === base ? next : revertChanges(cur, next, base); }
+
   function pad(n) { return String(n).padStart(2, '0'); }
   function localDay(ms) { const d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function exportFileName(ms) { return APP_ID + '-' + localDay(ms) + '.json'; }
@@ -1123,7 +1130,7 @@
     placeItems, copyItems, findByUrl, addBookmark, updateBookmark, deleteBookmarks, restoreBookmarks, bulkAddTags, bulkMove, deleteItems,
     isDay, isMonth, dayStart, dayEnd, monthStart, monthEnd, defaultQuery, textModeCount, foldKeepCase, bulkReplace, findDuplicates, resolveDuplicates, normalizeRange, hasDate, hasFilters, isSearching,
     sortBookmarks, foldedOf, search, listFolder, folderStats,
-    validateData, fixRefs, migrate, mergeData, diffData, revertChanges, safeUrl, exportFileName, exportPayload, localDay,
+    validateData, fixRefs, migrate, mergeData, diffData, revertChanges, rebaseChanges, safeUrl, exportFileName, exportPayload, localDay,
     exportHtmlFileName, isBookmarksHtml, decodeEntities, parseBookmarksHtml, mergeImported, exportHtml,
     formatDate, formatDateTime, dayToVN, monthToVN,
   };

@@ -191,6 +191,12 @@
         if (done) return;
         done = true;
         try { dlg.close(); } catch (e) { /* đã đóng */ }
+        // Thông báo đang hiện trong hộp này (có thể kèm Hoàn tác): chuyển ra ngoài thay vì mất theo hộp.
+        const t = dlg.querySelector('#toast');
+        if (t) {
+          const rest = [...rootNode().querySelectorAll('dialog[open]')].filter(d => d !== dlg);
+          (rest.length ? rest[rest.length - 1] : hostEl()).append(t);
+        }
         dlg.remove();
         if (opts.onClose) opts.onClose(v);
         resolve(v);
