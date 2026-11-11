@@ -131,6 +131,31 @@ with sync_playwright() as p:
     C = newpage(ctx, f'{R}/trang-hai.html'); box4 = T(C, 'soul-ribbon').bounding_box(); C.close()
     T(A, 'soul-ribbon').click(); W(A, 300); tap = sheet_open(A); close_sheet(A)
     ok('CT-45 kéo nút, nhớ vị trí', 190 <= box2['y'] - box['y'] <= 210 and closed and abs(box3['y'] - box2['y']) <= 3 and abs(box4['y'] - box2['y']) <= 3 and tap, [box['y'], box2['y'], box3['y'], box4['y']])
+    # CT-160 (2.8.0) Ruy băng mờ khi không chạm; kéo sang mép trái / phải, nhớ mép và cao độ
+    def opa(pg): return float(pg.evaluate("() => getComputedStyle(window.__SDT_SOUL__.shadow.querySelector('.rib')).opacity"))
+    def side(pg): return T(pg, 'soul-ribbon').get_attribute('data-side')
+    A.mouse.move(200, 120); W(A, 2300)
+    idle0 = opa(A)
+    rb = T(A, 'soul-ribbon').bounding_box()
+    A.mouse.move(rb['x'] + 20, rb['y'] + 20); A.mouse.down(); W(A, 250); pressed = opa(A)
+    A.mouse.move(150, rb['y'] + 20 - 120, steps=12); A.mouse.up(); W(A, 250)
+    lb = T(A, 'soul-ribbon').bounding_box(); awake_after = opa(A); closed160 = not sheet_open(A)
+    A.mouse.move(200, 120); W(A, 2300); faded = opa(A)
+    ui = json.loads(GM.get('sdt_ui', '{}'))
+    A.reload(); A.wait_for_selector('[data-test="soul-ribbon"]'); W(A, 150); lb2 = T(A, 'soul-ribbon').bounding_box()
+    C = newpage(ctx, f'{R}/trang-hai.html'); lb3 = T(C, 'soul-ribbon').bounding_box(); side3 = side(C); C.close()
+    T(A, 'soul-ribbon').click(); W(A, 300); tap160 = sheet_open(A); A.mouse.move(200, 120); W(A, 2300); open_awake = opa(A)
+    close_sheet(A); A.mouse.move(200, 120); W(A, 2300); faded2 = opa(A)
+    left_ok = lb['x'] == 0 and abs(lb['y'] - (rb['y'] - 120)) <= 3 and side(A) == 'left' and ui.get('side') == 'left' \
+        and abs(lb2['x']) < 1 and abs(lb2['y'] - lb['y']) <= 3 and side3 == 'left' and abs(lb3['x']) < 1 and abs(lb3['y'] - lb['y']) <= 3
+    fade_ok = idle0 < 0.5 and pressed > 0.9 and awake_after > 0.9 and faded < 0.5 and open_awake > 0.9 and faded2 < 0.5
+    # kéo về mép phải
+    lb = T(A, 'soul-ribbon').bounding_box()
+    A.mouse.move(lb['x'] + 20, lb['y'] + 20); A.mouse.down(); A.mouse.move(260, lb['y'] + 20, steps=12); A.mouse.up(); W(A, 250)
+    back = T(A, 'soul-ribbon').bounding_box()
+    right_ok = abs(back['x'] + back['width'] - 390) < 1 and side(A) == 'right' and json.loads(GM.get('sdt_ui', '{}')).get('side') == 'right' and not sheet_open(A)
+    ok('CT-160 ruy băng mờ khi không chạm; kéo sang mép trái/phải, nhớ vị trí', fade_ok and left_ok and closed160 and tap160 and right_ok,
+       [idle0, pressed, awake_after, faded, open_awake, faded2, lb, lb2, lb3, side3, ui, back, closed160, tap160])
     # CT-46
     P = newpage(ctx, f'{L}/spa.html'); p0 = state(P); P.click('#go')
     ok('CT-46 đổi địa chỉ không tải lại', p0 == 'off' and wait_state(P, 'on', 1.5), [p0, state(P)])
