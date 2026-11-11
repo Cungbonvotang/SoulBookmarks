@@ -8,9 +8,16 @@
   border: 0; border-radius: 14px 0 0 14px;
   background: var(--surface); box-shadow: -2px 3px 14px rgba(20, 30, 60, .22);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
-  touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; opacity: .96; z-index: 1;
+  touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; z-index: 1;
+  opacity: .38; transition: opacity .35s ease;
 }
+/* bám mép trái */
+.rib[data-side="left"] { right: auto; left: 0; border-radius: 0 14px 14px 0; box-shadow: 2px 3px 14px rgba(20, 30, 60, .22); }
+/* mờ khi không chạm; rõ khi chạm, kéo, rê chuột */
+.rib.awake { opacity: .96; transition-duration: .12s; }
 .rib.dragging { opacity: 1; box-shadow: -4px 6px 20px rgba(20, 30, 60, .32); }
+.rib[data-side="left"].dragging { box-shadow: 4px 6px 20px rgba(20, 30, 60, .32); }
+@media (prefers-reduced-motion: reduce) { .rib { transition: none; } }
 .rib-shape { display: block; width: 20px; height: 32px; }
 .rib-shape svg { display: block; width: 20px; height: 32px; overflow: visible; }
 .rib-shape path { fill: none; stroke: var(--accent); }

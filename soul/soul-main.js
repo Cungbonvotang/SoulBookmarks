@@ -189,28 +189,48 @@
   rib.setAttribute('data-state', 'off');
   wrap.append(rib);
 
+  // Vị trí: bám mép trái hoặc phải (side), cao độ theo tỉ lệ màn hình (y). Cất trong Kho nên nhớ cho mọi trang.
   function clampTop(px) { return Math.max(8, Math.min(window.innerHeight - 64, px)); }
   function placeRibbon() {
-    const y = Number(uiPrefs().y);
+    const p = uiPrefs();
+    const y = Number(p.y);
     const frac = Number.isFinite(y) && y >= 0 && y <= 1 ? y : 0.62;
     rib.style.top = clampTop(Math.round(frac * window.innerHeight)) + 'px';
+    rib.dataset.side = p.side === 'left' ? 'left' : 'right';
   }
   placeRibbon();
   window.addEventListener('resize', placeRibbon);
 
+  // Mờ khi không chạm: rõ lên khi chạm / kéo / rê chuột / bảng đang mở, mờ lại sau ~1,8 giây.
+  let fadeTimer = 0;
+  function wake(ms) {
+    clearTimeout(fadeTimer);
+    rib.classList.add('awake');
+    if (ms !== 0) fadeTimer = setTimeout(sleep, ms || 1800);
+  }
+  function sleep() {
+    clearTimeout(fadeTimer);
+    if (drag || sheet.open || rib.matches(':focus-visible')) return;
+    rib.classList.remove('awake');
+  }
+
   let drag = null;
   let suppressClick = false;
   rib.addEventListener('pointerdown', e => {
-    drag = { y0: e.clientY, top0: rib.getBoundingClientRect().top, moved: false };
+    const r = rib.getBoundingClientRect();
+    drag = { x0: e.clientX, y0: e.clientY, top0: r.top, left0: r.left, w: r.width, moved: false };
+    wake(0);
     try { rib.setPointerCapture(e.pointerId); } catch (err) { /* bỏ qua */ }
   });
   rib.addEventListener('pointermove', e => {
     if (!drag) return;
-    const dy = e.clientY - drag.y0;
-    if (!drag.moved && Math.abs(dy) < 8) return;
+    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (!drag.moved && Math.hypot(dx, dy) < 8) return;
     drag.moved = true;
     rib.classList.add('dragging');
     rib.style.top = clampTop(drag.top0 + dy) + 'px';
+    const left = Math.max(0, Math.min(window.innerWidth - drag.w, drag.left0 + dx));
+    rib.style.transform = 'translateX(' + Math.round(left - drag.left0) + 'px)';
     e.preventDefault();
   });
   function endDrag() {
@@ -218,13 +238,23 @@
     if (drag.moved) {
       suppressClick = true;
       setTimeout(() => { suppressClick = false; }, 400);
-      setUiPref('y', Math.round(rib.getBoundingClientRect().top / window.innerHeight * 1000) / 1000);
+      const r = rib.getBoundingClientRect();
+      const side = r.left + r.width / 2 < window.innerWidth / 2 ? 'left' : 'right';
+      rib.style.transform = '';
+      rib.dataset.side = side;
+      setUiPref('y', Math.round(r.top / window.innerHeight * 1000) / 1000);
+      setUiPref('side', side);
     }
     rib.classList.remove('dragging');
     drag = null;
+    wake();
   }
   rib.addEventListener('pointerup', endDrag);
   rib.addEventListener('pointercancel', endDrag);
+  rib.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') wake(0); });
+  rib.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !drag) wake(); });
+  rib.addEventListener('focus', () => { if (rib.matches(':focus-visible')) wake(0); });
+  rib.addEventListener('blur', () => wake());
   rib.addEventListener('click', () => { if (suppressClick) { suppressClick = false; return; } openSheet(); });
 
   const timing = { checks: [] };
@@ -270,6 +300,7 @@
     if (!sheet.open) sheet.showModal();
   }
   function closeSheet() { if (sheet.open) sheet.close(); refreshRibbon(); }
+  sheet.addEventListener('close', () => wake());
 
   /* ---------- trình quản lý lớp phủ ---------- */
   // Nhớ cách sắp xếp, chỗ đang xem, vị trí cuộn: cất trong Kho (chung mọi trang, còn sau khi cập nhật script).
