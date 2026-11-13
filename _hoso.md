@@ -173,7 +173,7 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: hai đường nói chuyện: dùng chung vùng chạy của userscript (trang không thấy nếu Soul tách vùng) hoặc sự kiện DOM (trang có thể nghe). Màn Sao lưu ghi rõ nơi cất và trường hợp đang dùng.
   - Biên: Kho chỉ nhận khóa dạng sdt_…, giá trị là chuỗi; không có lệnh xóa toàn bộ; lệnh lạ bị từ chối.
   - Biên: kiểm tra trang đã lưu chưa khi tải trang vẫn ≤ 30 ms với 50.000 dấu trang trong Kho.
-  - Biên (2.8.1): Soul không bảo đảm script Kho chạy trước script chính. Chưa thấy Kho lúc khởi động → chờ tối đa 3 giây rồi mới quyết; sau đó vẫn dò tiếp 30 giây và mỗi khi tab hiện lại / được chọn. Thấy Kho lúc nào → chuyển sang Kho (gộp phần đã ghi tạm vào kho riêng, nếu có), ruy băng, bảng lưu nhanh, trình quản lý đọc lại ngay.
+  - Biên (2.8.1): Soul không bảo đảm script Kho chạy trước script chính. Chưa thấy Kho lúc khởi động mà kho riêng trống hoặc đã có dấu "đã chuyển" → chờ tối đa 3 giây rồi mới quyết (kho riêng đang có dữ liệu chưa chuyển → dùng ngay, không chờ); sau đó vẫn dò tiếp 30 giây và mỗi khi tab hiện lại / được chọn. Thấy Kho lúc nào → chuyển sang Kho (gộp phần đã ghi tạm vào kho riêng, nếu có), ruy băng, bảng lưu nhanh, trình quản lý đọc lại ngay.
   - Biên: lần chuyển từ 2.1.x lên 2.2.0 phải chép tay một lần (2.1.x không biết Kho; cập nhật xóa kho cũ trước khi 2.2.0 chạy).
 
 - CN-11 (bản Soul) Nút ruy băng nổi trên mọi trang web: thay cho biểu tượng trên thanh công cụ.

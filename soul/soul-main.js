@@ -128,7 +128,10 @@
   }
   const pause = ms => new Promise(r => setTimeout(r, ms));
   let gate = (async () => {
-    if (!kho) {
+    // Kho riêng đang có dữ liệu chưa chuyển → dùng ngay (Kho có tới muộn thì gộp sang). Trống hoặc đã chuyển → chờ Kho.
+    const lk0 = localKeys();
+    const localData = !lk0.includes(MOVED) && (lk0.includes('sdt_meta') || lk0.includes('sdt_data'));
+    if (!kho && !localData) {
       const end = Date.now() + KHO_WAIT;
       while (!kho && Date.now() < end) { await pause(100); kho = findKho(); }
     }
