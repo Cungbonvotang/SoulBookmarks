@@ -50,11 +50,12 @@ window.__mkGM = function (ns) {
 window.__opened = []; window.__menu = {};
 """ % L
 
-def init(with_kho=True, force_events=False):
+def init(with_kho=True, force_events=False, kho_delay=None):
     s = SHIM
     if force_events: s += "\nwindow.__SDT_KHO_FORCE_EVENTS__ = true;\n"
-    if with_kho:   # Kho chạy lúc document-start với kho GM riêng của nó
-        s += "\n(function () { const g = window.__mkGM('kho'); (function (GM_getValue, GM_setValue, GM_deleteValue, GM_listValues) {\n" + KHO_JS + "\n})(g.get, g.set, g.del, g.list); })();\n"
+    if with_kho:   # Kho chạy lúc document-start với kho GM riêng của nó (kho_delay: chạy trễ sau script chính, như Soul đôi khi làm)
+        kho = "(function () { const g = window.__mkGM('kho'); (function (GM_getValue, GM_setValue, GM_deleteValue, GM_listValues) {\n" + KHO_JS + "\n})(g.get, g.set, g.del, g.list); })();"
+        s += "\n" + (kho if kho_delay is None else "window.addEventListener('DOMContentLoaded', function () { setTimeout(function () {\n" + kho + "\n}, %d); });" % kho_delay) + "\n"
     s += ("\nwindow.addEventListener('DOMContentLoaded', function () { const g = window.__mkGM('main');"
           " (function (GM_getValue, GM_setValue, GM_deleteValue, GM_listValues, GM_openInTab, GM_setClipboard, GM_registerMenuCommand) {\n" + MAIN_JS +
           "\n})(g.get, g.set, g.del, g.list, u => window.__opened.push(u), t => g.set('__clip', t), (n, f) => { window.__menu[n] = f; }); });")
@@ -188,6 +189,34 @@ with sync_playwright() as p:
     ok('CT-89 Kho bị tắt: báo lỗi, không ghi', st89['mode'] == 'missing' and rib == 'err' and err_b and GMS['kho'] == snap and GMS['main'] == snap_main,
        [st89, rib, err_b, GMS['kho'] == snap])
     P.close()
+
+    # CT-161 (2.8.1) Kho chạy trễ hơn script chính (Soul không bảo đảm thứ tự): vẫn dùng Kho, ruy băng đỏ, đủ dấu trang
+    snap161 = (dict(GMS['main']), dict(GMS['kho']))
+    GMS['main'].clear(); GMS['kho'].clear()
+    P = page(B); seed(P, sample()); save_here(P, 'Trang thử đã lưu'); P.close()
+    n_kho = count('kho')
+    def ribbon_on(pg, t=8.0):
+        end = time.time() + t
+        while time.time() < end:
+            if T(pg, 'soul-ribbon').get_attribute('data-state') == 'on': return True
+            W(pg, 100)
+        return False
+    res161 = {}
+    for name, delay, wipe in (('cap-nhat-tre-0.6s', 600, True), ('da-chuyen-tre-0.6s', 600, False), ('cap-nhat-tre-4s', 4000, True)):
+        if wipe: GMS['main'].clear()          # giả "bấm cập nhật" script chính
+        D = ctx_(with_kho=True, kho_delay=delay)
+        P = page(D, '/trang-thu.html')
+        on = ribbon_on(P)
+        st = storage(P)
+        n = len(data(P).get('bookmarks', []))
+        open_mgr(P); W(P, 300)
+        no_err = T(P, 'error-banner').count() == 0 and T(P, 'env-banner').count() == 0
+        main_data = [k for k in GMS['main'] if k.startswith('sdt_b_') or k == 'sdt_meta']
+        res161[name] = [on, st['mode'], n, no_err, main_data]
+        P.close(); D.close()
+    ok('CT-161 Kho chạy trễ: vẫn dùng Kho, ruy băng đỏ, trình quản lý đủ dấu trang',
+       all(v[0] and v[1] == 'kho-page' and v[2] == n_kho and v[3] and not v[4] for v in res161.values()) and n_kho == 17, [n_kho, res161])
+    GMS['main'].clear(); GMS['main'].update(snap161[0]); GMS['kho'].clear(); GMS['kho'].update(snap161[1])
 
     # CT-90 đường sự kiện DOM; Kho từ chối khóa lạ và lệnh xóa toàn bộ
     C = ctx_(with_kho=True, force_events=True)

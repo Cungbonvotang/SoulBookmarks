@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sổ Dấu Trang
 // @namespace    so-dau-trang
-// @version      2.8.0
+// @version      2.8.1
 // @description  Lưu dấu trang theo thư mục và nhãn; nút ruy băng cho biết trang đang mở đã lưu chưa. Dữ liệu chỉ nằm trong trình duyệt.
 // @homepageURL  https://github.com/Cungbonvotang/SoulBookmarks
 // @updateURL    https://raw.githubusercontent.com/Cungbonvotang/SoulBookmarks/main/so-dau-trang.user.js
@@ -3625,7 +3625,11 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     async getAll() { return {}; },
   };
   function localKeys() { try { return (GM_listValues() || []).filter(k => /^sdt_/.test(String(k))); } catch (e) { return []; } }
-  const kho = findKho();
+  // Soul không bảo đảm script Kho chạy trước script chính: chưa thấy Kho thì chờ thêm một lúc rồi mới quyết,
+  // và sau đó vẫn dò tiếp — thấy Kho lúc nào thì chuyển sang Kho lúc đó (không bao giờ coi kho riêng trống là dữ liệu thật).
+  const KHO_WAIT = 3000;                 // chờ lúc khởi động
+  const KHO_LATE = 30000;                // còn dò tiếp thêm chừng này sau đó
+  let kho = findKho();
   let active = local;
   let mode = 'local';
   let khoNote = '';
@@ -3647,24 +3651,56 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     if (!b.ok) throw new Error(b.error);
     await sK.replaceAll(SDT.mergeData(a.data, b.data).data, 'soul');
   }
-  const ready = (async () => {
+  // Nối vào Kho vừa tìm thấy: chuyển dữ liệu kho riêng sang (nếu chưa chuyển) rồi dùng Kho.
+  async function attachKho(k) {
     const lk = localKeys();
     const moved = lk.includes(MOVED);
-    if (!kho) { if (moved) { active = missingBackend; mode = 'missing'; } return; }
-    const kb = khoBackend(kho);
-    const dataKeys = lk.filter(k => k !== MOVED && k !== UI_KEY);
+    const kb = khoBackend(k);
+    const dataKeys = lk.filter(x => x !== MOVED && x !== UI_KEY);
     if (!moved && (dataKeys.includes('sdt_meta') || dataKeys.includes('sdt_data'))) {
-      try { await moveToKho(kb, dataKeys); } catch (e) { khoNote = 'Chưa chuyển được dấu trang sang script Kho (' + e.message + '). App tạm dùng kho riêng như cũ.'; return; }
+      try { await moveToKho(kb, dataKeys); } catch (e) { khoNote = 'Chưa chuyển được dấu trang sang script Kho (' + e.message + '). App tạm dùng kho riêng như cũ.'; return false; }
     }
     try { gmSet(MOVED, String(Date.now())); } catch (e) { /* bỏ qua */ }
+    kho = k; khoNote = '';
     active = kb;
-    mode = kho.private ? 'kho' : 'kho-page';
+    mode = k.private ? 'kho' : 'kho-page';
+    return true;
+  }
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  let gate = (async () => {
+    // Kho riêng đang có dữ liệu chưa chuyển → dùng ngay (Kho có tới muộn thì gộp sang). Trống hoặc đã chuyển → chờ Kho.
+    const lk0 = localKeys();
+    const localData = !lk0.includes(MOVED) && (lk0.includes('sdt_meta') || lk0.includes('sdt_data'));
+    if (!kho && !localData) {
+      const end = Date.now() + KHO_WAIT;
+      while (!kho && Date.now() < end) { await pause(100); kho = findKho(); }
+    }
+    if (kho) { const k = kho; kho = null; await attachKho(k); return; }
+    if (localKeys().includes(MOVED)) { active = missingBackend; mode = 'missing'; }
   })();
+  const ready = gate;
+  // Dò Kho muộn (sau lúc khởi động): khi thấy thì chuyển, rồi báo cho ruy băng, bảng, trình quản lý đọc lại.
+  let lateUntil = Date.now() + KHO_WAIT + KHO_LATE;
+  let lateBusy = false;
+  async function lateKho(force) {
+    await gate;
+    if (lateBusy || kho || khoNote || (!force && Date.now() > lateUntil)) return false;
+    const k = findKho();
+    if (!k) return false;
+    lateBusy = true;
+    let done = false;
+    gate = (async () => { done = await attachKho(k); })();
+    try { await gate; } finally { lateBusy = false; }
+    if (done) onKhoAttached();
+    return done;
+  }
+  let onKhoAttached = () => {};
+  const lateTimer = setInterval(() => { if (Date.now() > lateUntil || kho) clearInterval(lateTimer); else lateKho(); }, 500);
   const backend = {
-    async get(keys) { await ready; return active.get(keys); },
-    async set(obj) { await ready; return active.set(obj); },
-    async remove(keys) { await ready; return active.remove(keys); },
-    async getAll() { await ready; return active.getAll ? active.getAll() : {}; },
+    async get(keys) { await gate; return active.get(keys); },
+    async set(obj) { await gate; return active.set(obj); },
+    async remove(keys) { await gate; return active.remove(keys); },
+    async getAll() { await gate; return active.getAll ? active.getAll() : {}; },
   };
   const store = SDTStorage.makeStore(backend);
   function notice() {
@@ -3739,6 +3775,7 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     rib.dataset.side = p.side === 'left' ? 'left' : 'right';
   }
   placeRibbon();
+  ready.then(() => placeRibbon());          // vị trí cất trong Kho: đọc lại khi đã nối được Kho
   window.addEventListener('resize', placeRibbon);
 
   // Mờ khi không chạm: rõ lên khi chạm / kéo / rê chuột / bảng đang mở, mờ lại sau ~1,8 giây.
@@ -3893,10 +3930,17 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
   window.addEventListener('popstate', () => { if (!overlay.hidden) closeManager(true); });
 
   /* ---------- theo dõi thay đổi ---------- */
+  onKhoAttached = () => {
+    placeRibbon();
+    checkExternal();                         // rev khác → bảng / trình quản lý đọc lại
+    refreshRibbon();
+    if (popup && sheet.open) popup.refresh(false);
+    if (manager && !overlay.hidden) manager.reopen();
+  };
   store.onChange(() => refreshRibbon());
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkExternal(); refreshRibbon(); } });
-  window.addEventListener('focus', () => { checkExternal(); });
-  window.addEventListener('pageshow', () => { checkExternal(); refreshRibbon(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { lateKho(true); checkExternal(); refreshRibbon(); } });
+  window.addEventListener('focus', () => { lateKho(true); checkExternal(); });
+  window.addEventListener('pageshow', () => { lateKho(true); checkExternal(); refreshRibbon(); });
   let lastHref = location.href;
   setInterval(() => { if (location.href !== lastHref) { lastHref = location.href; refreshRibbon(); } }, 700);
 

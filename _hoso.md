@@ -1,5 +1,5 @@
 # Hồ sơ app: Sổ Dấu Trang
-Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.8.0 · DATA_VERSION: 2 · Cập nhật: 2026-11-11
+Artifact: không · Kho mã: github.com/Cungbonvotang/SoulBookmarks (nhánh main; so-dau-trang.user.js và so-dau-trang-kho.user.js ở gốc kho; script chính có @updateURL, script Kho cố ý không có) · ID tiện ích: fnaogpencohieonebopoaemepgjamdod · Phiên bản: 2.8.1 · DATA_VERSION: 2 · Cập nhật: 2026-11-13
 
 Dạng app: hai bản dùng chung logic và định dạng dữ liệu.
 - Bản tiện ích: tiện ích trình duyệt Manifest V3 cho Chrome/Edge/Cốc Cốc máy tính. Chrome Android không chạy được tiện ích.
@@ -173,6 +173,7 @@ Dữ liệu hai bản tách riêng; chuyển qua lại bằng xuất/nhập JSON
   - Biên: hai đường nói chuyện: dùng chung vùng chạy của userscript (trang không thấy nếu Soul tách vùng) hoặc sự kiện DOM (trang có thể nghe). Màn Sao lưu ghi rõ nơi cất và trường hợp đang dùng.
   - Biên: Kho chỉ nhận khóa dạng sdt_…, giá trị là chuỗi; không có lệnh xóa toàn bộ; lệnh lạ bị từ chối.
   - Biên: kiểm tra trang đã lưu chưa khi tải trang vẫn ≤ 30 ms với 50.000 dấu trang trong Kho.
+  - Biên (2.8.1): Soul không bảo đảm script Kho chạy trước script chính. Chưa thấy Kho lúc khởi động mà kho riêng trống hoặc đã có dấu "đã chuyển" → chờ tối đa 3 giây rồi mới quyết (kho riêng đang có dữ liệu chưa chuyển → dùng ngay, không chờ); sau đó vẫn dò tiếp 30 giây và mỗi khi tab hiện lại / được chọn. Thấy Kho lúc nào → chuyển sang Kho (gộp phần đã ghi tạm vào kho riêng, nếu có), ruy băng, bảng lưu nhanh, trình quản lý đọc lại ngay.
   - Biên: lần chuyển từ 2.1.x lên 2.2.0 phải chép tay một lần (2.1.x không biết Kho; cập nhật xóa kho cũ trước khi 2.2.0 chạy).
 
 - CN-11 (bản Soul) Nút ruy băng nổi trên mọi trang web: thay cho biểu tượng trên thanh công cụ.
@@ -364,6 +365,7 @@ Bản 2.2.0 (CN-19 script Kho) — thêm 2026-11-04. Cách chạy: hai kho GM gi
 - CT-87 (CN-19) Xóa kho riêng (giả cập nhật) → mở trang → đủ 16; lưu thêm → Kho có 17, kho riêng không có phần dấu trang; kéo nút ruy băng → vị trí cất trong Kho.
 - CT-88 (CN-19) Kho có 16, kho riêng có 2 mục mới + 1 mục trùng mã sửa mới hơn, chưa chuyển → gộp: 18 mục, mục trùng lấy bản mới hơn.
 - CT-89 (CN-19) Đã chuyển, Kho bị tắt → chế độ "missing", ruy băng lỗi, trình quản lý báo "Không thấy script…", thêm dấu trang không ghi; cả hai kho không đổi.
+- CT-161 (CN-19, 2.8.1) Kho chạy trễ hơn script chính: (a) vừa "cập nhật" script chính, Kho trễ 0,6 s; (b) đã chuyển, Kho trễ 0,6 s; (c) vừa cập nhật, Kho trễ 4 s (quá lúc chờ) → cả ba: nút ruy băng đỏ ở trang đã lưu, chế độ Kho, đủ 17 dấu trang, trình quản lý không có dòng nhắc / báo lỗi, kho riêng không có dữ liệu dấu trang.
 - CT-90 (CN-19) Đường sự kiện DOM: đọc đủ, lưu thêm được; trang gửi khóa lạ, lệnh "clear", giá trị không phải chuỗi → bị từ chối, Kho không đổi.
 - CT-91 (CN-19, CN-17) 50.000 dấu trang trong Kho: mở trang đã lưu → ruy băng "đã lưu", phần kiểm tra ≤ 30 ms (3 lần).
 - CT-92 (CN-19, CN-11) Trang bảo mật chặt (Trusted Types, CSP) có Kho → vẫn dùng Kho, bảng lưu nhanh mở được.
@@ -442,10 +444,10 @@ Bản 2.7.0 (CN-23) — thêm 2026-11-10.
 - CT-160 (CN-11, 2.8.0) Để yên 2 giây → nút mờ (độ đục < 0,5); nhấn giữ → rõ (> 0,9); kéo sang trái quá giữa màn hình rồi thả → nút bám mép trái đúng cao độ mới, không mở bảng, còn rõ ngay sau khi thả rồi mờ lại; tải lại và trang khác → vẫn mép trái, cùng cao độ; chạm → mở bảng, nút rõ suốt lúc bảng mở, đóng bảng → mờ lại; kéo về phải → bám mép phải.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-11, bản 2.8.0, giờ Asia/Ho_Chi_Minh. Tổng 364/364 qua.
+2026-11-13, bản 2.8.1, giờ Asia/Ho_Chi_Minh. Tổng 365/365 qua.
 - Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10, sửa lỗi 2.6.0 12/12, sửa lỗi 2.6.1 8/8, bản 2.7.0 17/17 (CT-151, CT-152).
 - Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10, bản 2.6.0 12/12, bản 2.6.1 14/14, bản 2.7.0 9/9 (CT-153…CT-158, CT-C8).
-- Bản Soul: 27/27 (thêm CT-160). Script Kho: 11/11. Tốc độ (perf_test): 12/12.
+- Bản Soul: 27/27 (thêm CT-160). Script Kho: 12/12 (thêm CT-161). Tốc độ (perf_test): 12/12.
 - Ca cũ sửa theo đặc tả mới (CN-23): các ca kéo thả ở khung 390px (CT-64, CT-65, CT-53) bấm "Sắp xếp lại" trước khi kéo.
 - Chưa thử được ở máy: Soul thật (độ mờ và kéo ngang nút ruy băng bằng tay thật; ô sắp xếp tự co theo chữ và tên 2 dòng khi đang tìm ở kiểu Gọn cần WebView mới; máy cũ vẫn dùng được, chỉ xuống dòng khác đi).
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
@@ -463,6 +465,7 @@ Bản 2.7.0 (CN-23) — thêm 2026-11-10.
 - 2.6.1 (2026-11-10): sửa 7 lỗi soát ngày 2026-11-10: mọi lần ghi xếp hàng (kho: hàng đợi + khóa navigator.locks ở bản tiện ích; trình quản lý: hàng đợi ghi/đọc lại, ghép thay đổi bằng core.rebaseChanges); Hoàn tác cho xóa nhãn và đổi tên/gộp nhãn; hỏi lại khi xóa từ 10 dấu trang, Hoàn tác 12 giây; ghi rõ phạm vi khi tìm trong thư mục và đưa lối sang kết quả nơi khác; thông báo (Hoàn tác) không mất theo hộp thoại; thứ tự kéo thả tự đánh số lại khi số thực hết chỗ; báo khi danh sách nhãn bị cắt. DATA_VERSION giữ 2.
 - 2.7.0 (2026-11-10): danh sách dễ đọc, dễ chạm hơn (CN-23): tên 2 dòng; nút "Xem gọn" (được nhớ); điện thoại có "Sắp xếp lại" mới hiện tay nắm ≡; tô chữ khớp khi tìm (core.highlightRanges); cây và dòng thư mục ghi tổng dấu trang kể cả thư mục con (core.folderTotals); bấm đường dẫn ở kết quả tìm → tới đúng mục; nút đầu danh sách cao 44px trên điện thoại; màu tay nắm, gợi ý phím tắt đậm hơn. DATA_VERSION giữ 2; trạng thái nhớ thêm trường dense.
 - 2.8.0 (2026-11-11): nút ruy băng bản Soul (CN-11): mờ khi không chạm, rõ khi chạm / kéo / bảng đang mở; kéo sang mép trái hoặc phải (thả là bám mép gần hơn); nhớ mép (sdt_ui.side) cùng cao độ cho mọi trang. Bản máy tính không đổi. DATA_VERSION giữ 2.
+- 2.8.1 (2026-11-13): sửa lỗi người dùng báo "thỉnh thoảng ruy băng không đỏ dù trang đã lưu, trình quản lý không có dấu trang nào": script chính chỉ tìm script Kho một lần lúc khởi động, Kho chạy trễ là app dùng kho riêng (trống sau mỗi lần cập nhật). Nay chờ Kho tối đa 3 giây, dò tiếp về sau và tự chuyển sang Kho khi thấy (CN-19). Script Kho không đổi (1.0.0). DATA_VERSION giữ 2.
 ## 7. Vấn đề đã biết ← mọi skill (chỉ thêm, ghi nguồn)
 - [thiet-ke-webapp] Hiểu "Chrome và Soul trên điện thoại" là Chrome trên máy tính + Soul Browser trên Android, vì Chrome Android không cài được tiện ích.
 - [thiet-ke-webapp] Chưa xác minh Soul Browser cài được tiện ích từ tệp (không qua Chrome Web Store); kiểm khi tạo app. Nếu không được, cần phương án khác cho điện thoại.
@@ -489,3 +492,4 @@ Bản 2.7.0 (CN-23) — thêm 2026-11-10.
 - [kiem-thu-webapp] Soát lần 2 ngày 2026-11-10 (bản 2.6.0): 7 vấn đề — (1) hai thao tác chồng nhau làm lệch kho và màn hình: 50.000 dấu trang, đổi chữ 12.500 mục rồi xóa một mục khi đang ghi → kho chỉ đổi 12.305 (đọc–sửa–ghi chồng nhau trên cùng phần dữ liệu; S.data bị ghi đè bằng bản tính từ dữ liệu cũ); (2) xóa nhãn, gộp nhãn không có Hoàn tác; (3) Chọn hết → Xóa không hỏi lại; (4) tìm trong thư mục không báo phạm vi; (5) Hoàn tác mất khi đóng hộp trùng; (6) thứ tự cỡ Date.now() hết độ phân giải số thực sau 13–25 lần thả cùng khe; (7) danh sách nhãn cắt 300 / 200 không báo. Đã sửa ở 2.6.1.
 - [sua-webapp] 2.6.1: thông báo ở đáy hộp thoại che nút hành động ở đáy hộp trong lúc đang hiện (tối đa 6–12 giây); đóng hộp bằng nút X ở đầu hộp vẫn được. Chưa đổi.
 - (sua-webapp 2.7.0, 2026-11-10) Ô sắp xếp tự co theo chữ dùng CSS field-sizing, tên 2 dòng khi đang tìm ở kiểu Gọn dùng :has(); trình duyệt cũ không hiểu thì hàng công cụ xuống dòng / tên còn 1 dòng, không lỗi. "Dấu trang" (gốc) trong cây vẫn đếm mục trực tiếp (dấu trang + thư mục cấp một), khác các thư mục (tổng dấu trang kể cả thư mục con).
+- [kiem-thu-webapp] 2026-11-13 (bản 2.8.0): người dùng báo thỉnh thoảng ruy băng không đỏ dù đã lưu và trình quản lý trống. Dựng lại được bằng cách cho script Kho chạy sau script chính 0,6 s: chế độ "local", 0 dấu trang. Nguyên nhân: findKho() chỉ gọi một lần; thứ tự chạy hai userscript trên Soul không bảo đảm (chưa kiểm được Soul có theo @run-at document-start không). Đã sửa ở 2.8.1. Còn lại: nếu Kho trễ hơn 3 giây, trong lúc chờ nút ruy băng hiện "chưa lưu" rồi mới đổi; nếu Kho bị tắt thật mà kho riêng vừa bị cập nhật xóa thì app không biết đã từng có Kho → hiện dòng nhắc "Chưa cài script Kho" (không ghi đè gì trong Kho).
