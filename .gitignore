@@ -4,3 +4,4 @@ build/
 *.pem
 *.zip
 *.crx
+soul/dist/

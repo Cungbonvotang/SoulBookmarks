@@ -1,11 +1,9 @@
 // ==UserScript==
 // @name         Sổ Dấu Trang
 // @namespace    so-dau-trang
-// @version      2.8.1
-// @description  Lưu dấu trang theo thư mục và nhãn; nút ruy băng cho biết trang đang mở đã lưu chưa. Dữ liệu chỉ nằm trong trình duyệt.
+// @version      3.0.0
+// @description  Lưu dấu trang theo thư mục và nhãn; nút ruy băng cho biết trang đang mở đã lưu chưa. Dữ liệu chỉ nằm trong trình duyệt. Cài một lần, app tự cập nhật: đừng bấm Cập nhật script này trong Soul (Soul sẽ xóa dấu trang).
 // @homepageURL  https://github.com/Cungbonvotang/SoulBookmarks
-// @updateURL    https://raw.githubusercontent.com/Cungbonvotang/SoulBookmarks/main/so-dau-trang.user.js
-// @downloadURL  https://raw.githubusercontent.com/Cungbonvotang/SoulBookmarks/main/so-dau-trang.user.js
 // @match        *://*/*
 // @include      *
 // @grant        GM_getValue
@@ -15,10 +13,138 @@
 // @grant        GM_openInTab
 // @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
+// @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
+// @grant        GM_download
+// @grant        GM_notification
+// @grant        GM_info
 // @grant        unsafeWindow
+// @connect      raw.githubusercontent.com
 // @run-at       document-idle
 // @noframes
 // ==/UserScript==
+/* Bộ nạp Sổ Dấu Trang (bản Soul). TỆP NÀY GIỮ NGUYÊN MÃI (cả @version): Soul xóa kho GM của script mỗi lần cập nhật,
+   nên script chỉ được cài một lần. Mã app mới nằm ở so-dau-trang-app.js; bộ nạp tự tải (6 giờ một lần), cất trong kho GM
+   và chạy từ lần mở trang sau. Trang chặn chạy mã tải về (CSP, Trusted Types) hoặc mã mới lỗi → chạy bản có sẵn bên dưới. */
+(function () {
+  'use strict';
+  if (window.top !== window.self) return;
+  if (!document.documentElement) return;
+  if (window.__sdtLoader) return;
+  var CODE_URL = 'https://raw.githubusercontent.com/Cungbonvotang/SoulBookmarks/main/so-dau-trang-app.js';
+  var BUNDLED = '3.0.0';
+  var K_CODE = 'sdtl_code', K_CHECKED = 'sdtl_checked', K_BAD = 'sdtl_bad';
+  var EVERY = 6 * 3600 * 1000;
+  var NAMES = ['GM_getValue', 'GM_setValue', 'GM_deleteValue', 'GM_listValues', 'GM_openInTab', 'GM_setClipboard',
+    'GM_registerMenuCommand', 'GM_xmlhttpRequest', 'GM_addStyle', 'GM_download', 'GM_notification', 'GM_info', 'GM',
+    'unsafeWindow', 'SDT_LOADER'];
+  var T = window.__SDT_TEST__ ? (window.__SDT_LOADER_TEST__ || {}) : null;   // chỉ máy thử đặt
+  if (T && T.url) CODE_URL = T.url;
+
+  function get(k, d) { try { var v = GM_getValue(k, d); return v === undefined || v === null ? d : v; } catch (e) { return d; } }
+  function set(k, v) { try { GM_setValue(k, v); } catch (e) { /* bỏ qua */ } }
+  function cmp(a, b) {
+    var x = String(a).split('.'), y = String(b).split('.');
+    for (var i = 0; i < Math.max(x.length, y.length); i++) {
+      var d = (parseInt(x[i], 10) || 0) - (parseInt(y[i], 10) || 0);
+      if (d) return d > 0 ? 1 : -1;
+    }
+    return 0;
+  }
+  function head(code) { var m = typeof code === 'string' ? /^\/\/ SDT_APP (\d+\.\d+\.\d+)\r?\n/.exec(code) : null; return m ? m[1] : null; }
+  function compile(code) { return new Function(NAMES.join(','), code); }
+
+  var L = { loader: '3.0.0', bundled: BUNDLED, running: null, source: null, error: null, evalBlocked: false, url: CODE_URL };
+  window.__sdtLoader = L;
+  L.lastCheck = function () { return Number(get(K_CHECKED, 0)) || 0; };
+  function cachedVersion() {
+    var v = head(get(K_CODE, null));
+    return v && cmp(v, BUNDLED) > 0 && get(K_BAD, '') !== v ? v : null;
+  }
+  function fetchText(url) {
+    function viaGM() {
+      return new Promise(function (ok, no) {
+        if (typeof GM_xmlhttpRequest !== 'function') { no(new Error('không tải được mã mới')); return; }
+        try {
+          GM_xmlhttpRequest({ method: 'GET', url: url, timeout: 30000,
+            onload: function (r) { if (r.status === 200) ok(r.responseText); else no(new Error('HTTP ' + r.status)); },
+            onerror: function () { no(new Error('không tải được mã mới')); }, ontimeout: function () { no(new Error('hết thời gian chờ')); } });
+        } catch (e) { no(e); }
+      });
+    }
+    var p;
+    try {
+      p = fetch(url, { cache: 'no-store', credentials: 'omit' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+    } catch (e) { p = Promise.reject(e); }
+    return p.catch(viaGM);
+  }
+  var busy = null;
+  // Tải mã mới nếu đã quá 6 giờ từ lần kiểm tra được gần nhất (force: kiểm ngay). Không bao giờ ném lỗi.
+  L.check = function (force) {
+    if (busy) return busy;
+    if (!force && Date.now() - L.lastCheck() < EVERY) return Promise.resolve({ status: 'skip' });
+    busy = fetchText(CODE_URL + (CODE_URL.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now()).then(function (text) {
+      var v = head(text);
+      if (!v) throw new Error('tệp mã không đúng dạng');
+      set(K_CHECKED, String(Date.now()));
+      var have = cachedVersion() || BUNDLED;
+      if (cmp(v, have) <= 0) return { status: 'latest', version: have };
+      if (get(K_BAD, '') === v) return { status: 'bad', version: v };
+      try { compile(text); } catch (e) {
+        if (e instanceof SyntaxError) { set(K_BAD, v); throw new Error('mã bản ' + v + ' bị lỗi'); }
+        // trang này chặn chạy mã: không kiểm được ở đây, trang khác sẽ kiểm khi chạy
+      }
+      set(K_CODE, text);
+      return { status: 'new', version: v };
+    }).then(function (r) { busy = null; return r; }, function (e) { busy = null; return { status: 'error', error: String((e && e.message) || e) }; });
+    return busy;
+  };
+
+  var api = [
+    typeof GM_getValue !== 'undefined' ? GM_getValue : undefined,
+    typeof GM_setValue !== 'undefined' ? GM_setValue : undefined,
+    typeof GM_deleteValue !== 'undefined' ? GM_deleteValue : undefined,
+    typeof GM_listValues !== 'undefined' ? GM_listValues : undefined,
+    typeof GM_openInTab !== 'undefined' ? GM_openInTab : undefined,
+    typeof GM_setClipboard !== 'undefined' ? GM_setClipboard : undefined,
+    typeof GM_registerMenuCommand !== 'undefined' ? GM_registerMenuCommand : undefined,
+    typeof GM_xmlhttpRequest !== 'undefined' ? GM_xmlhttpRequest : undefined,
+    typeof GM_addStyle !== 'undefined' ? GM_addStyle : undefined,
+    typeof GM_download !== 'undefined' ? GM_download : undefined,
+    typeof GM_notification !== 'undefined' ? GM_notification : undefined,
+    typeof GM_info !== 'undefined' ? GM_info : undefined,
+    typeof GM !== 'undefined' ? GM : undefined,
+    typeof unsafeWindow !== 'undefined' ? unsafeWindow : undefined,
+    L,
+  ];
+
+  var ran = false;
+  var cv = cachedVersion();
+  if (cv) {
+    var fn = null;
+    try { fn = compile(get(K_CODE, '')); } catch (e) {
+      if (e instanceof SyntaxError) set(K_BAD, cv); else L.evalBlocked = true;
+      L.error = String(e);
+    }
+    if (fn) {
+      L.running = cv; L.source = 'update';
+      try { fn.apply(null, api); ran = true; } catch (e) {
+        set(K_BAD, cv); L.error = String(e);
+        try { var o = document.querySelectorAll('sdt-so-dau-trang'); for (var i = 0; i < o.length; i++) o[i].remove(); } catch (x) { /* bỏ qua */ }
+        window.__sdtSoulLoaded = false;
+      }
+    }
+  }
+  if (!ran) {
+    L.running = BUNDLED; L.source = 'bundled';
+    try { SDT_APP.apply(null, api); } catch (e) { L.error = String(e); }
+  }
+  if (!T || T.autoCheck) setTimeout(function () { L.check(false); }, T && T.delay != null ? T.delay : 5000);
+
+  /* ---------- bản app có sẵn lúc cài ---------- */
+  function SDT_APP(GM_getValue, GM_setValue, GM_deleteValue, GM_listValues, GM_openInTab, GM_setClipboard,
+    GM_registerMenuCommand, GM_xmlhttpRequest, GM_addStyle, GM_download, GM_notification, GM_info, GM,
+    unsafeWindow, SDT_LOADER) {
 (function () {
 'use strict';
 if (window.top !== window.self) return;
@@ -3571,9 +3697,17 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     },
   };
 
-  /* ---------- nơi cất dữ liệu: script "Sổ Dấu Trang – Kho" (bền qua cập nhật) hoặc kho GM riêng ---------- */
-  const KHO_URL = 'https://raw.githubusercontent.com/Cungbonvotang/SoulBookmarks/main/so-dau-trang-kho.user.js';
-  const MOVED = 'sdt_kho_moved';           // đánh dấu trong kho riêng: dữ liệu đã chuyển sang Kho
+  /* ---------- nơi cất dữ liệu: kho GM của chính script này ---------- */
+  // Từ 3.0.0 chỉ còn một script. Script được cài một lần và KHÔNG cập nhật qua Soul (nút Cập nhật của Soul xóa kho GM);
+  // mã app mới do bộ nạp (so-dau-trang.user.js) tự tải. Chuyển từ bản 2.x: dấu trang đang nằm trong script
+  // "Sổ Dấu Trang – Kho" → chép một lần sang đây. Kho có thể chạy trễ hoặc lần mở trang đó Soul không chạy nó: chờ, dò tiếp.
+  const LOADER = typeof SDT_LOADER !== 'undefined' && SDT_LOADER ? SDT_LOADER : null;
+  const MOVED = 'sdt_kho_moved';              // (2.x) dữ liệu ở đây đã chuyển sang Kho → bản ở đây đã cũ
+  const IMPORTED = 'sdt_kho_imported';        // (3.0.0) đã chép dữ liệu từ Kho về: không cần Kho nữa
+  const IMPORT_SEEN = 'sdt_kho_import_seen';  // người dùng đã đọc lời báo "đã chép"
+  const MISSES = 'sdt_kho_misses';            // số lần mở trang chờ Kho mà không thấy
+  const FLAGS = new Set([MOVED, IMPORTED, IMPORT_SEEN, MISSES]);
+  const isData = k => /^sdt_/.test(String(k)) && !FLAGS.has(k);
   function parseVal(k, v) {
     if (k === 'sdt_data' || k === 'sdt_data_backup_v1') return v;
     try { return JSON.parse(v); } catch (e) { return v; }
@@ -3581,12 +3715,10 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
   function findKho() {
     let pageWin = window;
     try { if (typeof unsafeWindow !== 'undefined' && unsafeWindow) pageWin = unsafeWindow; } catch (e) { /* bỏ qua */ }
-    const g = window.__SDT_KHO_FORCE_EVENTS__ ? null : window.__sdtKho1;
+    const g = window.__SDT_KHO_FORCE_EVENTS__ ? null : window.__sdtKho1 || (pageWin !== window ? pageWin.__sdtKho1 : null);
     if (g && typeof g.call === 'function') {
-      let visible = true;
-      try { visible = pageWin === window || !!pageWin.__sdtKho1; } catch (e) { visible = true; }
       const call = q => JSON.parse(g.call(JSON.stringify(q)));
-      try { const r = call({ op: 'hello' }); if (r.ok) return { call, channel: 'world', private: !visible, version: r.result.version }; } catch (e) { /* thử đường sự kiện */ }
+      try { const r = call({ op: 'hello' }); if (r.ok) return { call }; } catch (e) { /* thử đường sự kiện */ }
     }
     // Đường sự kiện DOM: phát và nhận đều đồng bộ trong cùng lúc gọi.
     let want = null, got = null, seq = 0;
@@ -3603,99 +3735,104 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
       if (!r) throw new Error('Script Kho không trả lời.');
       return r;
     };
-    try { const r = call({ op: 'hello' }); if (r.ok) return { call, channel: 'events', private: false, version: r.result.version }; } catch (e) { /* không có Kho */ }
+    try { const r = call({ op: 'hello' }); if (r.ok) return { call, done: () => document.removeEventListener('sdt-kho:res', onRes) }; } catch (e) { /* không có Kho */ }
     document.removeEventListener('sdt-kho:res', onRes);
     return null;
   }
-  function khoBackend(kho) {
+  function khoRead(kho) {
     const run = q => { const r = kho.call(q); if (!r.ok) throw new Error(r.error || 'Script Kho báo lỗi.'); return r.result; };
-    return {
-      run,
-      async get(keys) { const r = run({ op: 'get', keys }); const o = {}; for (const [k, v] of Object.entries(r)) o[k] = parseVal(k, v); return o; },
-      async set(obj) { const d = {}; for (const [k, v] of Object.entries(obj)) d[k] = typeof v === 'string' ? v : JSON.stringify(v); run({ op: 'set', data: d }); },
-      async remove(keys) { run({ op: 'remove', keys }); },
-      async getAll() { const r = run({ op: 'get', keys: run({ op: 'list' }) }); const o = {}; for (const [k, v] of Object.entries(r)) o[k] = parseVal(k, v); return o; },
-    };
+    const keys = run({ op: 'list' }).filter(isData);
+    const out = keys.length ? run({ op: 'get', keys }) : {};
+    if (kho.done) kho.done();
+    return out;
   }
-  const MISSING = 'Không thấy script “Sổ Dấu Trang – Kho”. Dấu trang của bạn đang nằm trong script Kho: hãy bật lại hoặc cài lại script Kho rồi tải lại trang. Trong lúc này app không ghi gì.';
+  function localKeys() { try { return (GM_listValues() || []).filter(k => /^sdt_/.test(String(k))); } catch (e) { return []; } }
+  const hasData = keys => keys.includes('sdt_meta') || keys.includes('sdt_data');
+  function delKey(k) { try { GM_deleteValue(k); } catch (e) { gmSet(k, null); } }
+  // Kho chỉ để đọc, dùng khi gộp.
+  const roBackend = src => ({
+    async get(keys) { const o = {}; for (const k of keys) if (k in src) o[k] = parseVal(k, src[k]); return o; },
+    async set() { throw new Error('chỉ đọc'); }, async remove() { throw new Error('chỉ đọc'); },
+    async getAll() { const o = {}; for (const [k, v] of Object.entries(src)) o[k] = parseVal(k, v); return o; },
+  });
+  const MISSING = 'Dấu trang của bạn đang nằm trong script “Sổ Dấu Trang – Kho”, mà lần mở trang này app chưa đọc được nó. Hãy để script Kho bật rồi tải lại trang: app sẽ tự chép dấu trang sang và từ đó không cần script Kho nữa. Trong lúc này app không ghi gì.';
   const missingBackend = {
     async get(keys) { return keys.includes('sdt_error') ? { sdt_error: MISSING } : {}; },
     async set() { throw new Error(MISSING); },
     async remove() { throw new Error(MISSING); },
     async getAll() { return {}; },
   };
-  function localKeys() { try { return (GM_listValues() || []).filter(k => /^sdt_/.test(String(k))); } catch (e) { return []; } }
-  // Soul không bảo đảm script Kho chạy trước script chính: chưa thấy Kho thì chờ thêm một lúc rồi mới quyết,
-  // và sau đó vẫn dò tiếp — thấy Kho lúc nào thì chuyển sang Kho lúc đó (không bao giờ coi kho riêng trống là dữ liệu thật).
-  const KHO_WAIT = 3000;                 // chờ lúc khởi động
-  const KHO_LATE = 30000;                // còn dò tiếp thêm chừng này sau đó
-  let kho = findKho();
+  const KHO_WAIT = 3000;      // lúc khởi động: chờ Kho tối đa chừng này (khi chưa có dấu trang ở đây)
+  const KHO_LATE = 30000;     // sau đó còn dò tiếp chừng này (và mỗi khi tab hiện lại)
   let active = local;
   let mode = 'local';
   let khoNote = '';
-  async function moveToKho(kb, dataKeys) {
-    const khoKeys = kb.run({ op: 'list' });
-    const khoHas = khoKeys.includes('sdt_meta') || khoKeys.includes('sdt_data');
-    if (!khoHas) {
-      const d = {};
-      for (const k of dataKeys) { const v = gmGet(k, null); if (v !== null && v !== undefined) d[k] = typeof v === 'string' ? v : JSON.stringify(v); }
-      kb.run({ op: 'set', data: d });
-      const back = kb.run({ op: 'get', keys: Object.keys(d) });
-      for (const k of Object.keys(d)) if (back[k] !== d[k]) throw new Error('Kiểm lại sau khi chép không khớp ở ' + k + '.');
-      return;
-    }
-    // Cả hai bên đều có dữ liệu: gộp vào Kho, không bỏ bên nào.
-    const sL = SDTStorage.makeStore(local), sK = SDTStorage.makeStore(kb);
-    const a = await sK.loadAll(), b = await sL.loadAll();
-    if (!a.ok) throw new Error(a.error);
-    if (!b.ok) throw new Error(b.error);
-    await sK.replaceAll(SDT.mergeData(a.data, b.data).data, 'soul');
-  }
-  // Nối vào Kho vừa tìm thấy: chuyển dữ liệu kho riêng sang (nếu chưa chuyển) rồi dùng Kho.
-  async function attachKho(k) {
+  // Chép dữ liệu từ Kho sang đây (một lần). Ở đây có dữ liệu mới lưu trong lúc chờ Kho → gộp, không bỏ bên nào.
+  // Ở đây chỉ có bản cũ từ thời 2.x (có dấu MOVED) → thay bằng dữ liệu Kho.
+  async function importFromKho(k) {
+    const src = khoRead(k);
     const lk = localKeys();
-    const moved = lk.includes(MOVED);
-    const kb = khoBackend(k);
-    const dataKeys = lk.filter(x => x !== MOVED && x !== UI_KEY);
-    if (!moved && (dataKeys.includes('sdt_meta') || dataKeys.includes('sdt_data'))) {
-      try { await moveToKho(kb, dataKeys); } catch (e) { khoNote = 'Chưa chuyển được dấu trang sang script Kho (' + e.message + '). App tạm dùng kho riêng như cũ.'; return false; }
-    }
-    try { gmSet(MOVED, String(Date.now())); } catch (e) { /* bỏ qua */ }
-    kho = k; khoNote = '';
-    active = kb;
-    mode = k.private ? 'kho' : 'kho-page';
-    return true;
+    const stale = lk.includes(MOVED);
+    const mine = lk.filter(isData);
+    if (hasData(Object.keys(src)) && hasData(mine) && !stale) {
+      const sK = SDTStorage.makeStore(roBackend(src)), sL = SDTStorage.makeStore(local);
+      const a = await sK.loadAll(), b = await sL.loadAll();
+      if (!a.ok) throw new Error(a.error);
+      if (!b.ok) throw new Error(b.error);
+      await sL.replaceAll(SDT.mergeData(a.data, b.data).data, 'soul');
+      if (src.sdt_ui && !mine.includes('sdt_ui')) gmSet('sdt_ui', src.sdt_ui);
+    } else if (hasData(Object.keys(src))) {
+      for (const x of mine) if (!(x in src)) delKey(x);
+      for (const [x, v] of Object.entries(src)) gmSet(x, v);
+      for (const [x, v] of Object.entries(src)) if (gmGet(x, null) !== v) throw new Error('Kiểm lại sau khi chép không khớp ở ' + x + '.');
+    } else if (src.sdt_ui && !mine.includes('sdt_ui')) gmSet('sdt_ui', src.sdt_ui);
+    const r = await SDTStorage.makeStore(local).loadAll();
+    delKey(MOVED); delKey(MISSES);
+    gmSet(IMPORTED, JSON.stringify({ at: Date.now(), n: r.ok ? r.data.bookmarks.length : 0 }));
   }
+  async function tryImport(k) {
+    try { await importFromKho(k); khoNote = ''; active = local; mode = 'local'; return true; }
+    catch (e) {
+      khoNote = 'Chưa chép được dấu trang từ script Kho (' + e.message + '). Thử lại khi tải lại trang; dữ liệu trong Kho không bị đổi.';
+      if (localKeys().includes(MOVED)) { active = missingBackend; mode = 'missing'; }
+      return false;
+    }
+  }
+  const imported = () => localKeys().includes(IMPORTED);
   const pause = ms => new Promise(r => setTimeout(r, ms));
   let gate = (async () => {
-    // Kho riêng đang có dữ liệu chưa chuyển → dùng ngay (Kho có tới muộn thì gộp sang). Trống hoặc đã chuyển → chờ Kho.
-    const lk0 = localKeys();
-    const localData = !lk0.includes(MOVED) && (lk0.includes('sdt_meta') || lk0.includes('sdt_data'));
-    if (!kho && !localData) {
+    const lk = localKeys();
+    if (lk.includes(IMPORTED)) return;                         // đã chép xong: chỉ dùng kho này
+    let k = findKho();
+    const stale = lk.includes(MOVED);
+    // Chờ Kho khi ở đây chưa có dấu trang dùng được. Người chưa từng cài Kho: thôi chờ sau 3 lần không thấy.
+    const misses = Number(gmGet(MISSES, 0)) || 0;
+    if (!k && (stale || (!hasData(lk) && misses < 3))) {
       const end = Date.now() + KHO_WAIT;
-      while (!kho && Date.now() < end) { await pause(100); kho = findKho(); }
+      while (!k && Date.now() < end) { await pause(100); k = findKho(); }
+      if (!k && !stale) gmSet(MISSES, String(misses + 1));
     }
-    if (kho) { const k = kho; kho = null; await attachKho(k); return; }
-    if (localKeys().includes(MOVED)) { active = missingBackend; mode = 'missing'; }
+    if (k) { await tryImport(k); return; }
+    if (stale) { active = missingBackend; mode = 'missing'; }
   })();
   const ready = gate;
-  // Dò Kho muộn (sau lúc khởi động): khi thấy thì chuyển, rồi báo cho ruy băng, bảng, trình quản lý đọc lại.
-  let lateUntil = Date.now() + KHO_WAIT + KHO_LATE;
+  // Dò Kho muộn: thấy thì chép, rồi báo cho ruy băng, bảng, trình quản lý đọc lại.
+  const lateUntil = Date.now() + KHO_WAIT + KHO_LATE;
   let lateBusy = false;
+  let onImported = () => {};
   async function lateKho(force) {
     await gate;
-    if (lateBusy || kho || khoNote || (!force && Date.now() > lateUntil)) return false;
+    if (lateBusy || imported() || (!force && Date.now() > lateUntil)) return false;
     const k = findKho();
     if (!k) return false;
     lateBusy = true;
     let done = false;
-    gate = (async () => { done = await attachKho(k); })();
+    gate = (async () => { done = await tryImport(k); })();
     try { await gate; } finally { lateBusy = false; }
-    if (done) onKhoAttached();
+    if (done) onImported();
     return done;
   }
-  let onKhoAttached = () => {};
-  const lateTimer = setInterval(() => { if (Date.now() > lateUntil || kho) clearInterval(lateTimer); else lateKho(); }, 500);
+  const lateTimer = setInterval(() => { if (Date.now() > lateUntil || imported()) clearInterval(lateTimer); else lateKho(); }, 500);
   const backend = {
     async get(keys) { await gate; return active.get(keys); },
     async set(obj) { await gate; return active.set(obj); },
@@ -3703,34 +3840,39 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     async getAll() { await gate; return active.getAll ? active.getAll() : {}; },
   };
   const store = SDTStorage.makeStore(backend);
+  function importInfo() { try { const v = gmGet(IMPORTED, null); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
   function notice() {
-    if (khoNote) return { title: 'Chưa chuyển được sang script Kho', text: khoNote };
-    if (mode !== 'local') return null;
-    return {
-      title: 'Chưa cài script Kho',
-      text: 'Dấu trang đang nằm trong kho riêng của script này nên sẽ mất khi bấm cập nhật trong Soul. Cài thêm script “Sổ Dấu Trang – Kho” để giữ dấu trang qua mọi lần cập nhật; dữ liệu hiện có sẽ tự chuyển sang.',
-      action: { label: 'Cài script Kho', fn: () => openUrl(KHO_URL) },
+    if (khoNote) return { title: 'Chưa chép được dấu trang từ script Kho', text: khoNote };
+    const inf = importInfo();
+    if (inf && !gmGet(IMPORT_SEEN, null)) return {
+      title: 'Đã chép dấu trang từ script Kho',
+      text: 'Đã chép ' + inf.n + ' dấu trang sang script “Sổ Dấu Trang”. Từ bản 3.0.0 chỉ cần một script này: bạn có thể gỡ script “Sổ Dấu Trang – Kho”. Đừng bấm Cập nhật hay gỡ script “Sổ Dấu Trang” trong Soul (Soul sẽ xóa dấu trang); app tự cập nhật.',
+      action: { label: 'Đã hiểu', fn: () => { gmSet(IMPORT_SEEN, String(Date.now())); if (manager) manager.reopen(); } },
     };
+    return null;
+  }
+  function fmtTime(t) { try { return new Date(t).toLocaleString('vi-VN'); } catch (e) { return String(t); } }
+  function versionInfo() {
+    if (!LOADER) return '';
+    const last = LOADER.lastCheck ? LOADER.lastCheck() : 0;
+    return ' Bản app: ' + (LOADER.running || '?') + (LOADER.source === 'update' ? ' (đã tự cập nhật)' : ' (có sẵn lúc cài)') +
+      (LOADER.evalBlocked ? '; trang này chặn chạy mã tải về nên dùng bản có sẵn' : '') +
+      '. Kiểm tra bản mới lần cuối: ' + (last ? fmtTime(last) : 'chưa') + '.';
   }
   function storageInfo() {
-    if (mode === 'kho') return 'Nơi cất dữ liệu: script “Sổ Dấu Trang – Kho”. Cập nhật script chính không làm mất dấu trang. Trang web đang mở không đọc được dữ liệu này.';
-    if (mode === 'kho-page') return 'Nơi cất dữ liệu: script “Sổ Dấu Trang – Kho”. Cập nhật script chính không làm mất dấu trang. Hai script trao đổi qua trang đang mở, nên về lý thuyết mã của trang có thể đọc được dấu trang.';
     if (mode === 'missing') return MISSING;
-    return 'Nơi cất dữ liệu: kho riêng của script này — sẽ mất khi bấm cập nhật trong Soul. Hãy cài script “Sổ Dấu Trang – Kho”.';
+    return 'Nơi cất dữ liệu: ngay trong script “Sổ Dấu Trang” (chung mọi trang). App tự cập nhật: đừng bấm Cập nhật hay gỡ script này trong Soul, vì Soul sẽ xóa dấu trang. Nên thỉnh thoảng sao lưu.' + versionInfo();
   }
   // Soul không báo thay đổi giữa các tab: so rev khi tab hiện lại.
   function checkExternal() { return store.checkExternal(); }
 
-  // Tùy chọn giao diện (vị trí nút): cất trong Kho nếu có, để cũng còn sau khi cập nhật.
+  // Tùy chọn giao diện (vị trí nút, trạng thái trình quản lý).
   function uiPrefs() {
-    try {
-      if (kho) { const r = kho.call({ op: 'get', keys: [UI_KEY] }); if (r.ok && r.result[UI_KEY]) return JSON.parse(r.result[UI_KEY]); }
-      const v = gmGet(UI_KEY, '{}'); return typeof v === 'string' ? JSON.parse(v || '{}') : (v || {});
-    } catch (e) { return {}; }
+    try { const v = gmGet(UI_KEY, '{}'); return typeof v === 'string' ? JSON.parse(v || '{}') : (v || {}); } catch (e) { return {}; }
   }
   function setUiPref(k, val) {
     const p = uiPrefs(); p[k] = val;
-    try { if (kho) kho.call({ op: 'set', data: { [UI_KEY]: JSON.stringify(p) } }); else gmSet(UI_KEY, JSON.stringify(p)); } catch (e) { /* bỏ qua */ }
+    try { gmSet(UI_KEY, JSON.stringify(p)); } catch (e) { /* bỏ qua */ }
   }
 
   /* ---------- gốc giao diện trong Shadow DOM ---------- */
@@ -3930,7 +4072,7 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
   window.addEventListener('popstate', () => { if (!overlay.hidden) closeManager(true); });
 
   /* ---------- theo dõi thay đổi ---------- */
-  onKhoAttached = () => {
+  onImported = () => {
     placeRibbon();
     checkExternal();                         // rev khác → bảng / trình quản lý đọc lại
     refreshRibbon();
@@ -3948,13 +4090,22 @@ const SDT_CSS = "/* Sổ Dấu Trang 2.0 — nền chung (sáng, dịu; tối th
     if (typeof GM_registerMenuCommand === 'function') {
       GM_registerMenuCommand('Lưu / sửa trang này', openSheet);
       GM_registerMenuCommand('Mở trình quản lý', openManager);
+      if (LOADER && LOADER.check) GM_registerMenuCommand('Kiểm tra bản mới', async () => {
+        const r = await LOADER.check(true);
+        const t = r.status === 'new' ? 'Đã tải bản ' + r.version + ': tải lại trang để dùng.'
+          : r.status === 'latest' ? 'Đang dùng bản mới nhất (' + (LOADER.running || r.version) + ').'
+          : 'Chưa kiểm tra được bản mới' + (r.error ? ' (' + r.error + ')' : '') + '.';
+        SDTUI.toast(t, { error: r.status === 'error' });
+      });
     }
   } catch (e) { /* Soul không hiện menu cũng không sao */ }
 
   (document.documentElement || document.body).append(hostEl);
   refreshRibbon();
   if (window.__SDT_TEST__) window.__SDT_SOUL__ = { shadow, openSheet, openManager, closeManager, store, timing, ready,
-    storage: () => ({ mode, channel: kho ? kho.channel : null, private: kho ? kho.private : null, note: khoNote }) };
+    storage: () => ({ mode, imported: importInfo(), note: khoNote, loader: LOADER ? { running: LOADER.running, source: LOADER.source, evalBlocked: LOADER.evalBlocked } : null }) };
 })();
 
+})();
+  }
 })();
