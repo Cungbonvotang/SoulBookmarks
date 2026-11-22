@@ -470,12 +470,12 @@ Bản 3.0.0 (CN-24 một script, tự cập nhật) — thêm 2026-11-22. Cách 
 - CT-160 (CN-11, 2.8.0) Để yên 2 giây → nút mờ (độ đục < 0,5); nhấn giữ → rõ (> 0,9); kéo sang trái quá giữa màn hình rồi thả → nút bám mép trái đúng cao độ mới, không mở bảng, còn rõ ngay sau khi thả rồi mờ lại; tải lại và trang khác → vẫn mép trái, cùng cao độ; chạm → mở bảng, nút rõ suốt lúc bảng mở, đóng bảng → mờ lại; kéo về phải → bám mép phải.
 - CT-C7 (bản Soul) Kho GM chứa dữ liệu hỏng → bảng và lớp phủ báo lỗi, không ghi đè kho.
 ## 5. Kết quả thử gần nhất ← kiem-thu-webapp
-2026-11-13, bản 2.8.1, giờ Asia/Ho_Chi_Minh. Tổng 365/365 qua.
+2026-11-22, bản 3.0.0, giờ Asia/Ho_Chi_Minh. Tổng 367/367 qua.
 - Hàm thuần: core 52/52, HTML 32/32, cách so chữ 17/17, đổi chữ hàng loạt 17/17, dấu trang trùng 10/10, sửa lỗi 2.6.0 12/12, sửa lỗi 2.6.1 8/8, bản 2.7.0 17/17 (CT-151, CT-152).
 - Bản tiện ích: ui_test 66/66, HTML 21/21, cách so chữ 8/8, đổi chữ hàng loạt 9/9, dấu trang trùng 10/10, bản 2.6.0 12/12, bản 2.6.1 14/14, bản 2.7.0 9/9 (CT-153…CT-158, CT-C8).
-- Bản Soul: 27/27 (thêm CT-160). Script Kho: 12/12 (thêm CT-161). Tốc độ (perf_test): 12/12.
+- Bản Soul: 27/27 (thêm CT-160). Một script + bộ nạp (kho_test, viết lại cho CN-24): 14/14. Tốc độ (perf_test): 12/12.
 - Ca cũ sửa theo đặc tả mới (CN-23): các ca kéo thả ở khung 390px (CT-64, CT-65, CT-53) bấm "Sắp xếp lại" trước khi kéo.
-- Chưa thử được ở máy: Soul thật (độ mờ và kéo ngang nút ruy băng bằng tay thật; ô sắp xếp tự co theo chữ và tên 2 dòng khi đang tìm ở kiểu Gọn cần WebView mới; máy cũ vẫn dùng được, chỉ xuống dòng khác đi).
+- Chưa thử được ở máy: Soul thật (bộ nạp: Soul có cho chạy new Function trong userscript không, tải được raw.githubusercontent.com không; chép từ Kho trên máy thật; độ mờ và kéo ngang nút ruy băng bằng tay thật; ô sắp xếp tự co theo chữ và tên 2 dòng khi đang tìm ở kiểu Gọn cần WebView mới; máy cũ vẫn dùng được, chỉ xuống dòng khác đi).
 ## 6. Nhật ký phiên bản ← tao-webapp, sua-webapp
 - 1.0.0 (2026-11-03): bản đầu. Đủ CN-01…CN-10. Phông Be Vietnam Pro đóng gói sẵn. Biểu tượng ruy băng đổi màu + huy hiệu ✓. manifest có "key" để ID cố định giữa các lần cài.
 - 1.1.0 (2026-11-03): thêm bản Soul (userscript): nút ruy băng nổi, bảng lưu nhanh, trình quản lý lớp phủ, chép/dán dữ liệu. Tách popup/trình quản lý thành mô-đun gắn vào gốc bất kỳ (env). Bỏ innerHTML (an toàn với Trusted Types), kiểu nội tuyến qua CSSOM. Biểu tượng ruy băng vẽ lại bằng nét viền rõ hơn. DATA_VERSION giữ 1.
