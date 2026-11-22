@@ -7,7 +7,7 @@ APP = os.path.dirname(ROOT)
 EXT = os.path.join(APP, 'ext')
 SITE = os.path.join(ROOT, 'site')
 OUT = os.path.join(ROOT, 'out'); os.makedirs(OUT, exist_ok=True)
-USERJS = open(os.path.join(APP, 'so-dau-trang.user.js'), encoding='utf-8').read()
+USERJS = open(os.path.join(APP, 'soul', 'dist', 'so-dau-trang.dev.user.js'), encoding='utf-8').read()
 PORT = 8780
 BASE = f'http://localhost:{PORT}'
 GM = {}; GMLOG = []
